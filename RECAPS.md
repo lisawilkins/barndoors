@@ -6,6 +6,21 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-07-12 — Clarified Netlify/Supabase deployment details in AGENTS.md
+
+Discussed hosting the frontend on GitHub Pages vs. Netlify; decided to stick with
+Netlify + Supabase (no change to the locked-in stack). That discussion surfaced a
+few implementation details worth locking in, plus fixed a path bug:
+
+- Fixed `AGENTS.md` references to `barndoors-schema.md` that had regressed to a
+  nonexistent `/docs/` path (the file lives at the repo root).
+- Auth is Supabase Auth only — explicitly ruled out Netlify Identity to avoid
+  confusion between the two platforms' auth products.
+- The subscribable `.ics` calendar feed is implemented as a **Supabase Edge
+  Function**, not a Netlify Function.
+- Netlify needs a standard SPA redirect rule (`_redirects` or `netlify.toml`)
+  so client-side routing doesn't 404 on refresh/deep link.
+
 ## 2026-07-07 — Initial commit
 
 - Created the repo with a placeholder `README.md`.
