@@ -1,0 +1,15 @@
+# Netlify build config for the app/ frontend.
+# Supabase URL/anon key are set as env vars in the Netlify site settings
+# (Site configuration > Environment variables), never committed here.
+
+[build]
+  base = "app"
+  publish = "dist"
+  command = "npm run build"
+
+# SPA redirect so client-side routes (e.g. /heard, /chores) don't 404 on
+# refresh or direct link.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
