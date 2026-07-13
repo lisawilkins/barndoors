@@ -137,6 +137,7 @@ Preloaded: Back paddock, Small paddock, Side paddock, Large paddock, Alley/Arena
 | id | |
 | location_id | FK → turnout_locations |
 | name | optional, e.g. "Morning geldings" |
+| days_of_week | `text[]` of `mon`–`sun`; which days this group goes out |
 | updated_at | |
 | updated_by | |
 
