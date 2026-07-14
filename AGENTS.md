@@ -5,8 +5,9 @@ product/architecture decisions made during planning — treat these as settled u
 the project owner explicitly changes them here.
 
 Full data model lives in `barndoors-schema.md` — that file is the source of
-truth for tables/fields; keep it in sync with actual migrations. This file covers
-behavior, conventions, and guardrails.
+truth for tables/fields; keep it in sync with actual migrations in
+`supabase/migrations/`. `RECAPS.md` is a plain-language project history (not a
+spec). This file covers behavior, conventions, and guardrails.
 
 ## Project summary
 
@@ -27,7 +28,12 @@ targets, minimal typing, and high legibility over density or cleverness.
   there (`netlify.toml` sets `base = "app"`). Tailwind v4 via the `@tailwindcss/vite` plugin
   (no separate `tailwind.config.js` unless explicitly added later). **Routing:** React Router
   (`react-router-dom`) for client-side navigation.
-- **Backend:** Supabase (Postgres + Auth + Storage + Row-Level Security)
+- **Backend:** Supabase (Postgres + Auth + Storage + Row-Level Security). Schema
+  lives in `supabase/migrations/` (timestamped SQL files), with lookup seed data in
+  `supabase/seed.sql` and local CLI config in `supabase/config.toml`. Apply new
+  migrations to the linked remote project via `supabase db push` (after
+  `supabase link`). Local link state under `supabase/.temp/` is gitignored. A live
+  Supabase project is connected; the committed migrations reflect production.
 - **Deployment:** Netlify (frontend), Supabase (backend). Production site:
   `https://barn-doors.netlify.app`. Root `netlify.toml` sets `base = "app"`, `publish = "dist"`
   (publish is relative to base — **not** `app/dist`), and `command = "npm run build"`. Netlify
@@ -46,7 +52,10 @@ targets, minimal typing, and high legibility over density or cleverness.
     to the Netlify production URL and add it to **Redirect URLs** (e.g.
     `https://barn-doors.netlify.app/**`).
 - **Auth:** Supabase Auth only. Do not use Netlify Identity or any other auth provider —
-  this was flagged explicitly to avoid confusion between the two platforms.
+  this was flagged explicitly to avoid confusion between the two platforms. New accounts
+  sign up via the app's `/login` page (creates a `profiles` row via DB trigger, default
+  role `hand`). The **first manager** must be promoted in the Supabase dashboard (or SQL)
+  — there is no in-app invite flow yet (planned as a Supabase Edge Function).
 - **Offline:** read-only caching only (service worker + IndexedDB) for this iteration —
   no offline writes, no sync engine (e.g. PowerSync). Do not add offline write queues
   without explicit sign-off; this was a deliberate scope decision, not an oversight.
@@ -72,16 +81,20 @@ targets, minimal typing, and high legibility over density or cleverness.
   shifts, everything. Hands do not mark chores complete — there is no completion
   tracking in this app. Hands cannot create, edit, or delete records anywhere.
 - Enforce row-level restrictions via Supabase RLS, not client-side checks alone. Every
-  table's write policy should reduce to: `allow write if auth.role() = 'manager'`.
+  table's write policy should reduce to: managers only. Phrasing like
+  `auth.role() = 'manager'` in this doc is shorthand — Postgres `auth.role()` only
+  returns `authenticated`/`anon`/`service_role`; the migrations implement manager
+  checks via a `public.is_manager()` helper that reads `profiles.role`.
   There should be no per-table exceptions — if a feature seems to need one, stop and
   ask rather than assuming.
 - **Field-level (column) restrictions are different from row-level and need a different
   mechanism.** Where hands should see *some* but not *all* columns of a row they're
   otherwise allowed to read (e.g. `profiles.email` and `profiles.emergency_contact` are
-  hidden for other hands, but visible on their own profile), build a restricted
-  Postgres **view** (e.g. `profiles_hand_visible`) that hands query instead of the base
-  table. Do not attempt this kind of restriction by filtering fields in app code —
-  it's easy to leak data if the UI is bypassed (API calls, browser dev tools, etc.).
+  hidden for other hands, but visible on their own profile), use a restricted Postgres
+  **function** (e.g. `profiles_hand_visible()` — a `SECURITY DEFINER` RPC that nulls
+  hidden columns) that hands query instead of the base table. Do not attempt this kind
+  of restriction by filtering fields in app code — it's easy to leak data if the UI is
+  bypassed (API calls, browser dev tools, etc.).
 
 ## Data model
 
@@ -147,6 +160,8 @@ Every authenticated screen shares the same top-level layout:
   non-developer product owner can follow — avoid unexplained technical jargon.
 - Don't run destructive database migrations (drops, irreversible schema changes)
   without explicitly flagging it first and waiting for confirmation.
+- When changing the database, add a new file under `supabase/migrations/` **and**
+  update `barndoors-schema.md` in the same change.
 - Don't introduce new external services/APIs (calendar OAuth, offline sync engines,
   push notification providers, PDF/CSV generation libraries, etc.) without flagging
   the addition — several of these were deliberately scoped out for this iteration.
