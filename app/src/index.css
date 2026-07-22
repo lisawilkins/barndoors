@@ -9,3 +9,38 @@ body,
 body {
   margin: 0;
 }
+
+/* Feed schedule report (print-friendly spreadsheet view) */
+.feed-report-th,
+.feed-report-td {
+  border: 1px solid #ddd;
+  padding: 0.3em 0.5em;
+  line-height: 1.15;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.feed-report-th {
+  background-color: #f3f4f6;
+  font-weight: 600;
+  border-bottom: 2px solid #ccc;
+}
+
+@media print {
+  @page {
+    size: letter landscape;
+    margin: 0.35in;
+  }
+
+  html,
+  body {
+    height: auto;
+  }
+
+  .feed-report-table,
+  .feed-report-th,
+  .feed-report-td {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

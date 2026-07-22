@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { SelectField } from './FormField'
 import { supabase } from '../lib/supabaseClient'
 import { formatDays } from '../lib/turnoutSchedule'
+import { formatAge } from '../lib/formatAge'
 
 const STATUS_LABEL = {
   active: 'Active',
@@ -18,17 +19,13 @@ const UNIT_SHORT = {
   lbs: 'lbs',
 }
 
-function formatAge(birthDate) {
-  if (!birthDate) return null
-  const birth = new Date(`${birthDate}T00:00:00`)
-  const now = new Date()
-  let years = now.getFullYear() - birth.getFullYear()
-  const monthDiff = now.getMonth() - birth.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birth.getDate())) {
-    years -= 1
-  }
-  if (years < 1) return '< 1 yr'
-  return `${years} yr${years === 1 ? '' : 's'}`
+function InfoRow({ label, value }) {
+  return (
+    <div className="grid grid-cols-2 items-start gap-4">
+      <span className="text-lg font-medium text-gray-700">{label}</span>
+      <span className="text-left text-lg text-gray-900 break-words">{value || '—'}</span>
+    </div>
+  )
 }
 
 function noteLines(text) {
@@ -92,7 +89,7 @@ function SectionHeader({ title, editTo, showEdit }) {
   )
 }
 
-export default function HeardCardBody({ animalId, isManager, onArchived }) {
+export default function HeardCardBody({ animalId, isManager, onArchived, photoUrl }) {
   const [animal, setAnimal] = useState(null)
   const [feedPlan, setFeedPlan] = useState([])
   const [turnoutSchedule, setTurnoutSchedule] = useState([])
@@ -115,7 +112,7 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
         supabase
           .from('turnout_group_members')
           .select(
-            'group_id, turnout_groups ( id, days_of_week, turnout_locations ( name ), turnout_group_members ( head_id, head ( name, tag_id ) ) )',
+            'group_id, turnout_groups ( id, days_of_week, turnout_locations ( name ), turnout_group_members ( head_id, head ( name ) ) )',
           )
           .eq('head_id', animalId),
       ])
@@ -150,7 +147,7 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
 
             const buddyNames = (group.turnout_group_members ?? [])
               .filter((member) => member.head_id !== animalId)
-              .map((member) => member.head?.name || member.head?.tag_id)
+              .map((member) => member.head?.name)
               .filter(Boolean)
 
             return {
@@ -213,11 +210,18 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
   const feedNotes = noteLines(animal.feed_notes)
   const turnoutNotes = noteLines(animal.turnout_notes)
   const editPath = `/heard/${animalId}/edit`
-  const subtitle = [age, animal.breed].filter(Boolean).join(' · ')
 
   return (
-    <div className="flex flex-col gap-4 border-t border-gray-200 px-4 pb-4 pt-3">
-      {subtitle && <p className="text-lg text-gray-500">{subtitle}</p>}
+    <div className="flex flex-col gap-5 border-t border-gray-200 px-4 pb-4 pt-3">
+      <InfoRow label="Sex" value={animal.sex} />
+
+      {photoUrl && (
+        <img
+          src={photoUrl}
+          alt={animal.name || 'Animal'}
+          className="h-48 w-full rounded-xl object-cover"
+        />
+      )}
 
       <section className="flex flex-col gap-3">
         <SectionHeader title="Feed" editTo={editPath} showEdit={isManager} />
@@ -226,13 +230,13 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
           {feedPlan.length === 0 ? (
             <p className="text-lg text-gray-500">No feed plan yet.</p>
           ) : (
-            <ul className="flex flex-col gap-3">
+            <ul className="flex flex-col gap-6">
               {feedPlan.map((row) => (
-                <li key={row.id} className="flex flex-col gap-1">
-                  <span className="text-xl font-semibold text-gray-900">
+                <li key={row.id} className="grid grid-cols-2 items-start gap-4">
+                  <span className="text-xl font-semibold text-gray-900 break-words">
                     {row.feed_items?.name ?? '—'}
                   </span>
-                  <span className="text-lg text-gray-500">
+                  <span className="text-lg text-gray-500 text-left break-words">
                     {[formatFeedPrimary(row), formatFeedSecondary(row)]
                       .filter((part) => part !== '—')
                       .join(' · ') || '—'}
@@ -297,7 +301,11 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
         </div>
       </section>
 
-      {isManager && (
+      <InfoRow label="Age" value={age} />
+      <InfoRow label="Species" value={animal.species} />
+      <InfoRow label="Breed" value={animal.breed} />
+
+      {isManager ? (
         <section className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4">
           <SelectField
             label="Status"
@@ -323,6 +331,8 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
             {savingStatus ? 'Saving…' : 'Save status'}
           </button>
         </section>
+      ) : (
+        <InfoRow label="Status" value={STATUS_LABEL[animal.status] ?? animal.status} />
       )}
     </div>
   )

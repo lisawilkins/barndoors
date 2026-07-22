@@ -9,8 +9,11 @@ import HeardDetail from './pages/HeardDetail'
 import HeardForm from './pages/HeardForm'
 import Hands from './pages/Hands'
 import HandForm from './pages/HandForm'
+import ManagerForm from './pages/ManagerForm'
 import Chores from './pages/Chores'
 import ChoreForm from './pages/ChoreForm'
+import Reports from './pages/Reports'
+import FeedScheduleReport from './pages/FeedScheduleReport'
 
 function App() {
   return (
@@ -73,6 +76,26 @@ function App() {
             }
           />
           <Route
+            path="/hands/new"
+            element={
+              <ProtectedRoute>
+                <ManagerRoute>
+                  <HandForm />
+                </ManagerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hands/new-manager"
+            element={
+              <ProtectedRoute>
+                <ManagerRoute>
+                  <ManagerForm />
+                </ManagerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/hands/:id"
             element={
               <ProtectedRoute>
@@ -108,6 +131,22 @@ function App() {
                 <ManagerRoute>
                   <ChoreForm />
                 </ManagerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/feed-schedule"
+            element={
+              <ProtectedRoute>
+                <FeedScheduleReport />
               </ProtectedRoute>
             }
           />

@@ -1,9 +1,24 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import TopNav from '../components/TopNav'
-import HeardCardBody, { STATUS_LABEL } from '../components/HeardCardBody'
+import HeardCardBody from '../components/HeardCardBody'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { formatAge } from '../lib/formatAge'
 
 const EXPAND_MS = 200
 
@@ -24,6 +39,121 @@ function Chevron({ open }) {
   )
 }
 
+function GripIcon() {
+  return (
+    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </svg>
+  )
+}
+
+function HeardListItem({
+  animal,
+  photoUrl,
+  age,
+  isExpanded,
+  showContent,
+  isManager,
+  onToggleExpand,
+  onGridTransitionEnd,
+  onArchived,
+  registerRef,
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: animal.id,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <li
+      ref={(element) => {
+        setNodeRef(element)
+        registerRef(animal.id, element)
+      }}
+      style={style}
+      className={`scroll-mt-4 ${isDragging ? 'relative z-10' : ''}`}
+    >
+      <div
+        className={`flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 ${
+          isExpanded ? 'shadow-sm' : ''
+        } ${isDragging ? 'shadow-md' : ''}`}
+      >
+        {isManager && !isExpanded && (
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to reorder"
+            style={{ touchAction: 'none' }}
+            className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-gray-400 active:cursor-grabbing active:bg-gray-200"
+          >
+            <GripIcon />
+          </button>
+        )}
+
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            aria-expanded={isExpanded}
+            onClick={() => onToggleExpand(animal.id)}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100"
+          >
+            {photoUrl ? (
+              <img
+                src={photoUrl}
+                alt={animal.name || 'Animal'}
+                className="h-14 w-14 flex-shrink-0 rounded-lg object-cover"
+              />
+            ) : (
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl">
+                🐴
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="truncate text-xl font-semibold text-gray-900">
+                {animal.name || 'Unnamed'}
+              </span>
+              <span className="truncate text-lg text-gray-500">
+                {[age, animal.sex, animal.breed].filter(Boolean).join(' · ') ||
+                  'No details yet'}
+              </span>
+            </div>
+            <Chevron open={isExpanded} />
+          </button>
+
+          <div
+            className={`grid transition-[grid-template-rows] duration-200 ease-out ${
+              isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+            }`}
+            style={{ transitionDuration: `${EXPAND_MS}ms` }}
+            onTransitionEnd={(event) => onGridTransitionEnd(animal.id, event)}
+          >
+            <div className="min-h-0 overflow-hidden">
+              {showContent && (
+                <HeardCardBody
+                  animalId={animal.id}
+                  isManager={isManager}
+                  onArchived={onArchived}
+                  photoUrl={photoUrl}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+  )
+}
+
 export default function Heard() {
   const { isManager } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -36,14 +166,18 @@ export default function Heard() {
   const cardRefs = useRef({})
   const scrollTargetId = useRef(null)
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  )
+
   useEffect(() => {
     let active = true
 
     supabase
       .from('head')
-      .select('id, tag_id, name, species, breed, status')
+      .select('id, name, sex, breed, birth_date, sort_order')
       .eq('status', 'active')
-      .order('name', { ascending: true })
+      .order('sort_order', { ascending: true })
       .then(async ({ data, error: fetchError }) => {
         if (!active) return
         if (fetchError) {
@@ -150,6 +284,38 @@ export default function Heard() {
     })
   }
 
+  async function persistOrder(reordered, previous) {
+    const results = await Promise.all(
+      reordered.map((animal, index) =>
+        supabase.from('head').update({ sort_order: index }).eq('id', animal.id),
+      ),
+    )
+
+    const failed = results.find((result) => result.error)
+    if (failed) {
+      setError(failed.error.message)
+      setHead(previous)
+    }
+  }
+
+  function handleDragEnd(event) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = head.findIndex((animal) => animal.id === active.id)
+    const newIndex = head.findIndex((animal) => animal.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const previous = head
+    const reordered = arrayMove(head, oldIndex, newIndex)
+    setHead(reordered)
+    persistOrder(reordered, previous)
+  }
+
+  function registerCardRef(animalId, element) {
+    cardRefs.current[animalId] = element
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <TopNav />
@@ -174,81 +340,37 @@ export default function Heard() {
           <p className="text-lg text-gray-500">No animals yet.</p>
         )}
 
-        <ul className="flex flex-col gap-3">
-          {head.map((animal) => {
-            const photoUrl = photosByHeadId[animal.id]
-            const isExpanded = expandedId === animal.id
-            const showContent = Boolean(contentByCard[animal.id])
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={head.map((animal) => animal.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="flex flex-col gap-3">
+              {head.map((animal) => {
+                const photoUrl = photosByHeadId[animal.id]
+                const age = formatAge(animal.birth_date)
+                const isExpanded = expandedId === animal.id
+                const showContent = Boolean(contentByCard[animal.id])
 
-            return (
-              <li
-                key={animal.id}
-                ref={(element) => {
-                  cardRefs.current[animal.id] = element
-                }}
-                className="scroll-mt-4"
-              >
-                <div
-                  className={`overflow-hidden rounded-xl border border-gray-200 bg-gray-50 ${
-                    isExpanded ? 'shadow-sm' : ''
-                  }`}
-                >
-                  <button
-                    type="button"
-                    aria-expanded={isExpanded}
-                    onClick={() => toggleExpand(animal.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100"
-                  >
-                    {photoUrl ? (
-                      <img
-                        src={photoUrl}
-                        alt={animal.name || animal.tag_id || 'Animal'}
-                        className="h-14 w-14 flex-shrink-0 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl">
-                        🐴
-                      </div>
-                    )}
-                    <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate text-xl font-semibold text-gray-900">
-                          {animal.name || animal.tag_id || 'Unnamed'}
-                        </span>
-                        <span className="flex-shrink-0 rounded-full bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700">
-                          {STATUS_LABEL[animal.status] ?? animal.status}
-                        </span>
-                      </div>
-                      <span className="truncate text-lg text-gray-500">
-                        {[animal.species, animal.breed].filter(Boolean).join(' · ') ||
-                          'No details yet'}
-                      </span>
-                    </div>
-                    <Chevron open={isExpanded} />
-                  </button>
-
-                  <div
-                    className={`grid transition-[grid-template-rows] duration-200 ease-out ${
-                      isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-                    }`}
-                    style={{ transitionDuration: `${EXPAND_MS}ms` }}
-                    onTransitionEnd={(event) => handleGridTransitionEnd(animal.id, event)}
-                  >
-                    <div className="min-h-0 overflow-hidden">
-                      {showContent && (
-                        <HeardCardBody
-                          animalId={animal.id}
-                          isManager={isManager}
-                          onArchived={handleArchived}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+                return (
+                  <HeardListItem
+                    key={animal.id}
+                    animal={animal}
+                    photoUrl={photoUrl}
+                    age={age}
+                    isExpanded={isExpanded}
+                    showContent={showContent}
+                    isManager={isManager}
+                    onToggleExpand={toggleExpand}
+                    onGridTransitionEnd={handleGridTransitionEnd}
+                    onArchived={handleArchived}
+                    registerRef={registerCardRef}
+                  />
+                )
+              })}
+            </ul>
+          </SortableContext>
+        </DndContext>
       </main>
     </div>
   )

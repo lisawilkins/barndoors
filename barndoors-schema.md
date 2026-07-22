@@ -9,7 +9,7 @@ _Last updated: reflects all decisions through Reports section._
 - **Soft delete by default:** most records use a `status` or `active` field instead of being erased. Hard delete is available as a separate, deliberate action (e.g. for true duplicates/mistakes), not the default.
 - **Manager-only writes:** every table below is writable only by `role = manager`, enforced via row-level security (`auth.role() = 'manager'`) — no per-table exceptions.
 - **Extensible lists:** several lists (feed items, turnout locations, chore types) support a manager-added "New" entry rather than being hardcoded.
-- **Field-level visibility (new):** where hands and managers see different fields on the *same* row (not different rows), use a restricted Postgres **view** exposing only allowed columns, rather than filtering in app code. See `profiles_hand_visible` below.
+- **Field-level visibility (new):** where hands and managers see different fields on the *same* row (not different rows), use a restricted Postgres **function** exposing only allowed columns, rather than filtering in app code. See `profiles_hand_visible()` below.
 
 ---
 
@@ -18,7 +18,7 @@ _Last updated: reflects all decisions through Reports section._
 ### `profiles`
 | Field | Notes |
 |---|---|
-| id | |
+| id | manager rows: matches their `auth.users.id`. Hand rows: a plain generated id — no login account required, see note below |
 | role | `manager` \| `hand` |
 | name | |
 | photo_url | |
@@ -28,9 +28,11 @@ _Last updated: reflects all decisions through Reports section._
 | status | `active` \| `inactive` (soft delete) |
 | calendar_feed_token | long random string, powers the subscribable `.ics` feed URL; regeneratable if compromised |
 
-**Visibility rule:** hands can see their **own** full profile (including their own email and emergency contact). For *other* hands, `email` and `emergency_contact` are hidden. Managers see everything, for everyone.
+**Auth model:** managers each have an individual Supabase Auth account (email + password) and sign in individually. Hands do not — everyone signs in as a hand through one shared Supabase Auth account gated by a single universal password (see AGENTS.md "Auth"). Because of this, `profiles.id` is **not** foreign-keyed to `auth.users.id` — a manager's row happens to match their real auth id, but a hand's row is just a manager-managed person record (used for shift scheduling, chore assignment, and reports) with no auth account behind it at all.
 
-**Implementation:** create a view `profiles_hand_visible` that exposes all columns except `email` and `emergency_contact` for rows that aren't the requesting user's own. Hands query this view; managers query `profiles` directly. Do not attempt this restriction in app code alone — enforce at the database layer.
+**Visibility rule:** there is no "own profile" concept anymore, since hand logins are shared. `email` and `emergency_contact` are always hidden from the hand-facing view, for every row. Managers see everything, for everyone.
+
+**Implementation:** `profiles_hand_visible()` is a `SECURITY DEFINER` Postgres function that exposes all columns except `email` and `emergency_contact` (always nulled). Hands query this function; managers query `profiles` directly. Do not attempt this restriction in app code alone — enforce at the database layer.
 
 ### `shifts`
 | Field | Notes |
@@ -64,6 +66,7 @@ _Last updated: reflects all decisions through Reports section._
 | acquired_date | |
 | feed_notes | free text, animal-specific |
 | turnout_notes | free text, animal-specific |
+| sort_order | integer; manager-controlled display order for the Heard list (drag-and-drop). Defaults to "append at the end" for new animals via `head_sort_order_seq`; backfilled alphabetically for existing rows. The Heard list orders by this instead of `name`. |
 
 **Parked for later:** vet/dental/farrier notes, restricted from hands — likely a separate table (e.g. `head_medical_notes`) rather than columns on an existing table, so the hand/manager visibility split stays table-level (simple RLS) instead of column-level (requires a view).
 
@@ -184,7 +187,7 @@ Preloaded: Feed, Muck stalls, Clean waters, Clean troughs, Clean out old hay, Fl
 
 ## Reports
 
-No new tables — reports are filtered, fixed-layout, **print-friendly browser views** (styled for `@media print`, no PDF/CSV generation for v1) built on top of existing data:
+No new tables — reports are filtered, fixed-layout, **print-friendly browser views** (styled for `@media print`, no PDF generation for v1) built on top of existing data. Some reports also offer a plain CSV download of the same data (client-side generated, no new dependency) as a second, non-print output — e.g. the feed schedule report.
 
 | Report | Source tables | Filters |
 |---|---|---|

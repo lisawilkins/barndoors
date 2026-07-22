@@ -3,6 +3,13 @@ import { supabase } from './supabaseClient'
 
 const AuthContext = createContext(null)
 
+// Hands no longer have individual accounts — everyone signs in as a hand
+// through this one shared Supabase Auth account, gated by a single
+// universal password entered on the login screen. This email isn't a
+// secret (it ships in the JS bundle); the password is the only thing that
+// actually needs to be kept to "people who work here." See AGENTS.md "Auth".
+const HAND_LOGIN_EMAIL = 'hand@barndoors.internal'
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -66,8 +73,8 @@ export function AuthProvider({ children }) {
     isManager: profile?.role === 'manager',
     loading,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
-    signUp: (email, password, name) =>
-      supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }),
+    signInAsHand: (password) =>
+      supabase.auth.signInWithPassword({ email: HAND_LOGIN_EMAIL, password }),
     signOut: () => supabase.auth.signOut(),
   }
 

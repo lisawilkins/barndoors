@@ -6,6 +6,85 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-07-22 — Added a security review section to AGENTS.md
+
+Added a **Security review** section to `AGENTS.md` so agents (and I) have a
+standing rule for when to run a security pass and what to actually check. Two
+parts: *when to review* (before every production deploy, and after anything that
+touches forms, routes, backend code, migrations, Edge Functions, or new
+dependencies) and a *BarnDoors-specific checklist* (RLS on every table, column
+hiding staying server-side, service-role code authorizing its caller, the `.ics`
+token endpoint leaking nothing extra, secrets never reaching the frontend, and
+Storage bucket policies matching the role rules).
+
+Also documented a **full sweep** procedure in `AGENTS.md` (audit every existing
+RLS policy and Edge Function, not just the current diff) — worth running
+periodically and before major milestones, since the `security-review` skill only
+looks at pending changes on the current branch.
+
+## 2026-07-21 — Feed schedule: added CSV download as view 2
+
+Added a "Download CSV" button next to "Print" on `/reports/feed-schedule`,
+same column order and data as the spreadsheet view (`lib/csv.js` — a small
+`Blob` + temporary `<a download>` helper, no new dependency). This
+**reverses the earlier "no PDF/CSV export in v1" scope decision** — flagged
+and confirmed with the project owner before building. Updated `AGENTS.md`
+and `barndoors-schema.md` accordingly: PDF generation is still out of scope,
+but CSV download is now allowed per-report where it's useful.
+
+## 2026-07-21 — First report: printable feed schedule (spreadsheet view)
+
+Started the Reports section (previously just a placeholder concept in
+AGENTS.md/schema). Added a "Reports" button to the home screen, a `/reports`
+index page, and the first real report at `/reports/feed-schedule`.
+
+- Spreadsheet-style view: one row per active horse, one column per feed
+  item. Column order is fixed — Horse name, Alfalfa, Grass, Grain, SR Pro,
+  SimpliFly, then any remaining feed items (Calf Manna, plus anything added
+  via "New") alphabetically, then Feed notes last. Built to reuse the same
+  amount-formatting rules as the Heard detail view (`lib/feedFormat.js`).
+- Sized to print on one 8.5"x11" sheet, single-sided, landscape (set via a
+  global `@page { size: letter landscape }` in `index.css` — fine while this
+  is the only print report; will need named `@page` rules if a future report
+  wants a different size/orientation on the same visit). Font size is
+  computed from *both* the number of horses (rows) and the number of feed
+  items (columns) — whichever axis is more cramped wins — so the sheet
+  scales down gracefully whether you add more horses or more feed items,
+  down to a legibility floor (~9px); beyond that floor it's expected to
+  spill onto a second page rather than become unreadable. Subtle zebra
+  stripe for readability across many rows.
+- This is view 1 of 2 planned for the feed schedule; a second layout is
+  planned as a follow-up.
+
+## 2026-07-21 — Manager/Hand shared login redesign
+
+Hands no longer get individual login accounts — they weren't using/maintaining
+them reliably. Replaced with: managers still sign in individually (email +
+password); everyone else signs in as "Hand" through one shared account gated
+by a single universal password.
+
+- `/login` now shows two stacked buttons, "Manager" and "Hand", each revealing
+  its own fields below it. `AuthContext.signInAsHand(password)` signs in
+  against one fixed, non-secret shared email (`HAND_LOGIN_EMAIL`).
+- Migration `20260721100000_decouple_hand_profiles_from_auth.sql` dropped the
+  foreign key that forced every `profiles` row to have a live `auth.users`
+  account behind it, and simplified `profiles_hand_visible()` to always hide
+  `email`/`emergency_contact` (there's no more "own profile" concept once
+  hand logins are shared). This was necessary so individual hands' person
+  records — name, phone, shift schedule, chore assignments — survive once
+  their old individual login accounts are deleted; before this change,
+  deleting those accounts would have cascade-deleted or been blocked by that
+  data.
+- New manager-only screens: "Add hand" (`/hands/new`, plain `profiles`
+  insert, no login account) and "Add manager" (`/hands/new-manager`, calls
+  the new `create-manager` Edge Function, since a manager creating another
+  manager's account can't safely use the client-side `signUp` call — it
+  would swap the caller's own session to the new user).
+- One-time manual setup completed: created the shared `hand@barndoors.internal`
+  Auth account and its `profiles` row (`role = 'hand'`, name "Hand").
+- Still to do: delete the old individual hand `auth.users` accounts now that
+  their person records are decoupled and safe to keep.
+
 ## 2026-07-13 — Synced AGENTS.md with Heard UX and turnout/photo decisions
 
 Updated `AGENTS.md` so agents don't regress recent settled choices from this build

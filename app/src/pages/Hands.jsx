@@ -49,6 +49,23 @@ export default function Hands() {
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <h1 className="text-3xl font-semibold text-gray-900">Hands</h1>
 
+        {isManager && (
+          <div className="flex gap-3">
+            <Link
+              to="/hands/new"
+              className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
+            >
+              Add hand
+            </Link>
+            <Link
+              to="/hands/new-manager"
+              className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
+            >
+              Add manager
+            </Link>
+          </div>
+        )}
+
         {(loading || authLoading) && <p className="text-lg text-gray-500">Loading…</p>}
         {error && <p className="text-lg text-red-600">{error}</p>}
 

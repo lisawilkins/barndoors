@@ -4,19 +4,29 @@ import TopNav from '../components/TopNav'
 import { TextField, SelectField } from '../components/FormField'
 import { supabase } from '../lib/supabaseClient'
 
-// Editing only — creating a person means them signing up on the Login page
-// (Supabase Auth), which also creates their `profiles` row via a DB trigger.
-// A manager promotes/edits that row here afterward.
+const BLANK = { name: '', phone: '', role: 'hand', status: 'active' }
+
+// Hands are plain directory records (no login account) — a manager can
+// create one directly here. Managers are different: they need a real
+// Supabase Auth login, so new manager accounts are created on the separate
+// "Add manager" screen (which calls the create-manager Edge Function)
+// instead of through this form. Because of that, role isn't editable here —
+// changing an existing person's role away from what they were created as
+// wouldn't add or remove a login account, so it could leave a "manager" row
+// with no way to sign in, or a "hand" row that's actually still a live
+// manager login.
 export default function HandForm() {
   const { id } = useParams()
+  const isEdit = Boolean(id)
   const navigate = useNavigate()
 
-  const [form, setForm] = useState({ name: '', phone: '', role: 'hand', status: 'active' })
-  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState(BLANK)
+  const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (!isEdit) return
     let active = true
 
     supabase
@@ -37,7 +47,7 @@ export default function HandForm() {
     return () => {
       active = false
     }
-  }, [id])
+  }, [id, isEdit])
 
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
@@ -48,7 +58,12 @@ export default function HandForm() {
     setSaving(true)
     setError('')
 
-    const { error: saveError } = await supabase.from('profiles').update(form).eq('id', id)
+    const { name, phone, status } = form
+
+    const { error: saveError } = isEdit
+      ? await supabase.from('profiles').update({ name, phone, status }).eq('id', id)
+      : await supabase.from('profiles').insert({ name, phone, status, role: 'hand' })
+
     setSaving(false)
 
     if (saveError) {
@@ -73,7 +88,15 @@ export default function HandForm() {
       <TopNav />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <h1 className="text-3xl font-semibold text-gray-900">Edit person</h1>
+        <h1 className="text-3xl font-semibold text-gray-900">{isEdit ? 'Edit hand' : 'Add hand'}</h1>
+
+        {isEdit && (
+          <p className="text-lg text-gray-500">
+            Role:{' '}
+            <span className="font-medium capitalize text-gray-900">{form.role}</span>
+            {form.role === 'manager' && ' (has their own login — this can\u2019t be changed here)'}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <TextField
@@ -88,14 +111,6 @@ export default function HandForm() {
             value={form.phone}
             onChange={(event) => update('phone', event.target.value)}
           />
-          <SelectField
-            label="Role"
-            value={form.role}
-            onChange={(event) => update('role', event.target.value)}
-          >
-            <option value="hand">Hand</option>
-            <option value="manager">Manager</option>
-          </SelectField>
           <SelectField
             label="Status"
             value={form.status}

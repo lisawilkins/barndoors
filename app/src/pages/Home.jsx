@@ -5,6 +5,7 @@ const SECTIONS = [
   { label: 'Heard', to: '/heard' },
   { label: 'Hands', to: '/hands' },
   { label: 'Chores', to: '/chores' },
+  { label: 'Reports', to: '/reports' },
 ]
 
 export default function Home() {
@@ -13,7 +14,7 @@ export default function Home() {
       <TopNav />
 
       <main className="flex flex-1 flex-col justify-center gap-4 px-4 py-8 sm:px-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {SECTIONS.map(({ label, to }) => (
             <Link
               key={label}

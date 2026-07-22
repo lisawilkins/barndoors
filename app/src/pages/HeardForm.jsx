@@ -14,7 +14,6 @@ import { supabase } from '../lib/supabaseClient'
 
 const BLANK = {
   name: '',
-  tag_id: '',
   species: '',
   breed: '',
   sex: '',
@@ -25,6 +24,8 @@ const BLANK = {
   turnout_notes: '',
 }
 
+const NEW_FEED_ITEM_VALUE = '__new__'
+
 function blankFeedRow() {
   return {
     key: crypto.randomUUID(),
@@ -34,6 +35,8 @@ function blankFeedRow() {
     amount_lbs: '',
     amount: '',
     unit: 'cup',
+    new_feed_name: '',
+    new_feed_dual_unit: false,
   }
 }
 
@@ -47,6 +50,10 @@ export default function HeardForm() {
   const [feedItems, setFeedItems] = useState([])
   const [feedRows, setFeedRows] = useState([])
   const [removedFeedRowIds, setRemovedFeedRowIds] = useState([])
+  const [showFeedTypeManager, setShowFeedTypeManager] = useState(false)
+  const [allFeedItems, setAllFeedItems] = useState([])
+  const [feedTypeManagerLoading, setFeedTypeManagerLoading] = useState(false)
+  const [feedTypeManagerError, setFeedTypeManagerError] = useState('')
   const [turnoutLocations, setTurnoutLocations] = useState([])
   const [otherHeads, setOtherHeads] = useState([])
   const [turnoutRows, setTurnoutRows] = useState([])
@@ -67,7 +74,7 @@ export default function HeardForm() {
         await Promise.all([
         supabase.from('feed_items').select('id, name, dual_unit').eq('active', true).order('name'),
         supabase.from('turnout_locations').select('id, name').eq('active', true).order('name'),
-        supabase.from('head').select('id, name, tag_id').eq('status', 'active').order('name'),
+        supabase.from('head').select('id, name').eq('status', 'active').order('name'),
         isEdit ? supabase.from('head').select('*').eq('id', id).single() : Promise.resolve({}),
         isEdit
           ? supabase.from('head_feed_plan').select('*').eq('head_id', id)
@@ -178,6 +185,60 @@ export default function HeardForm() {
         setRemovedFeedRowIds((ids) => [...ids, row.id])
       }
       return current.filter((item) => item.key !== key)
+    })
+  }
+
+  async function loadAllFeedItems() {
+    setFeedTypeManagerLoading(true)
+    setFeedTypeManagerError('')
+
+    const { data, error: loadError } = await supabase
+      .from('feed_items')
+      .select('id, name, dual_unit, active')
+      .order('name')
+
+    if (loadError) {
+      setFeedTypeManagerError(loadError.message)
+    } else {
+      setAllFeedItems(data ?? [])
+    }
+
+    setFeedTypeManagerLoading(false)
+  }
+
+  async function handleToggleFeedTypeManager() {
+    const opening = !showFeedTypeManager
+    setShowFeedTypeManager(opening)
+    if (opening) {
+      await loadAllFeedItems()
+    }
+  }
+
+  async function toggleFeedItemActive(item) {
+    const { error: updateError } = await supabase
+      .from('feed_items')
+      .update({ active: !item.active })
+      .eq('id', item.id)
+
+    if (updateError) {
+      setFeedTypeManagerError(updateError.message)
+      return
+    }
+
+    setAllFeedItems((current) =>
+      current.map((existing) =>
+        existing.id === item.id ? { ...existing, active: !existing.active } : existing,
+      ),
+    )
+
+    setFeedItems((current) => {
+      if (item.active) {
+        return current.filter((existing) => existing.id !== item.id)
+      }
+      if (current.some((existing) => existing.id === item.id)) return current
+      return [...current, { id: item.id, name: item.name, dual_unit: item.dual_unit }].sort(
+        (a, b) => a.name.localeCompare(b.name),
+      )
     })
   }
 
@@ -296,11 +357,41 @@ export default function HeardForm() {
     for (const row of feedRows) {
       if (!row.feed_item_id) continue
 
-      const dualUnit = feedItems.find((item) => item.id === row.feed_item_id)?.dual_unit
+      let feedItemId = row.feed_item_id
+      let dualUnit
+
+      if (feedItemId === NEW_FEED_ITEM_VALUE) {
+        const name = row.new_feed_name.trim()
+        if (!name) {
+          setError('Enter a name for the new feed type.')
+          setSaving(false)
+          return
+        }
+
+        const { data: newItem, error: newItemError } = await supabase
+          .from('feed_items')
+          .insert({ name, dual_unit: row.new_feed_dual_unit })
+          .select('id, name, dual_unit')
+          .single()
+
+        if (newItemError) {
+          setError(newItemError.message)
+          setSaving(false)
+          return
+        }
+
+        feedItemId = newItem.id
+        dualUnit = newItem.dual_unit
+        setFeedItems((current) =>
+          [...current, newItem].sort((a, b) => a.name.localeCompare(b.name)),
+        )
+      } else {
+        dualUnit = feedItems.find((item) => item.id === feedItemId)?.dual_unit
+      }
 
       const feedPayload = {
         head_id: headId,
-        feed_item_id: row.feed_item_id,
+        feed_item_id: feedItemId,
         amount_flakes: dualUnit && row.amount_flakes !== '' ? Number(row.amount_flakes) : null,
         amount_lbs: dualUnit && row.amount_lbs !== '' ? Number(row.amount_lbs) : null,
         amount: !dualUnit && row.amount !== '' ? Number(row.amount) : null,
@@ -412,6 +503,17 @@ export default function HeardForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <TextField
+            label="Name"
+            value={form.name}
+            onChange={(event) => update('name', event.target.value)}
+          />
+          <TextField
+            label="Sex"
+            value={form.sex}
+            onChange={(event) => update('sex', event.target.value)}
+          />
+
           <div className="flex flex-col gap-3">
             <span className="text-lg font-medium text-gray-700">Photo</span>
 
@@ -454,62 +556,65 @@ export default function HeardForm() {
             </div>
           </div>
 
-          <TextField
-            label="Name"
-            value={form.name}
-            onChange={(event) => update('name', event.target.value)}
-          />
-          <TextField
-            label="Tag ID"
-            value={form.tag_id}
-            onChange={(event) => update('tag_id', event.target.value)}
-          />
-          <TextField
-            label="Species"
-            value={form.species}
-            onChange={(event) => update('species', event.target.value)}
-          />
-          <TextField
-            label="Breed"
-            value={form.breed}
-            onChange={(event) => update('breed', event.target.value)}
-          />
-          <TextField
-            label="Sex"
-            value={form.sex}
-            onChange={(event) => update('sex', event.target.value)}
-          />
-          <TextField
-            label="Birth date"
-            type="date"
-            value={form.birth_date ?? ''}
-            onChange={(event) => update('birth_date', event.target.value)}
-          />
-          <TextField
-            label="Acquired date"
-            type="date"
-            value={form.acquired_date ?? ''}
-            onChange={(event) => update('acquired_date', event.target.value)}
-          />
-          <SelectField
-            label="Status"
-            value={form.status}
-            onChange={(event) => update('status', event.target.value)}
-          >
-            <option value="active">Active</option>
-            <option value="sold">Sold</option>
-            <option value="deceased">Deceased</option>
-            <option value="archived">Archived</option>
-          </SelectField>
           <div className="flex flex-col gap-3">
-            <span className="text-lg font-medium text-gray-700">Feed plan</span>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-lg font-medium text-gray-700">Feed plan</span>
+              <button
+                type="button"
+                onClick={handleToggleFeedTypeManager}
+                className="text-lg font-medium text-gray-600 underline active:text-gray-900"
+              >
+                Manage feed types
+              </button>
+            </div>
+
+            {showFeedTypeManager && (
+              <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                {feedTypeManagerLoading ? (
+                  <p className="text-lg text-gray-500">Loading feed types…</p>
+                ) : (
+                  <>
+                    {feedTypeManagerError && (
+                      <p className="text-lg text-red-600">{feedTypeManagerError}</p>
+                    )}
+                    {allFeedItems.length === 0 && !feedTypeManagerError && (
+                      <p className="text-lg text-gray-500">No feed types yet.</p>
+                    )}
+                    {allFeedItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between gap-3 border-b border-gray-200 pb-3 last:border-0 last:pb-0"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-lg font-medium text-gray-900">{item.name}</span>
+                          <span className="text-base text-gray-500">
+                            {item.dual_unit ? 'Flakes + lbs' : 'Amount + unit'} ·{' '}
+                            {item.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleFeedItemActive(item)}
+                          className="flex h-10 items-center justify-center rounded-lg border border-gray-300 px-3 text-lg font-medium text-gray-700 active:bg-gray-100"
+                        >
+                          {item.active ? 'Deactivate' : 'Reactivate'}
+                        </button>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
 
             {feedRows.length === 0 && (
               <p className="text-lg text-gray-500">No feed items yet.</p>
             )}
 
             {feedRows.map((row) => {
-              const dualUnit = feedItems.find((item) => item.id === row.feed_item_id)?.dual_unit
+              const isNewFeedType = row.feed_item_id === NEW_FEED_ITEM_VALUE
+              const dualUnit = isNewFeedType
+                ? row.new_feed_dual_unit
+                : feedItems.find((item) => item.id === row.feed_item_id)?.dual_unit
 
               return (
                 <div
@@ -531,6 +636,7 @@ export default function HeardForm() {
                           {item.name}
                         </option>
                       ))}
+                      <option value={NEW_FEED_ITEM_VALUE}>+ Add new feed type…</option>
                     </SelectField>
                     <button
                       type="button"
@@ -540,6 +646,28 @@ export default function HeardForm() {
                       Remove
                     </button>
                   </div>
+
+                  {isNewFeedType && (
+                    <div className="flex flex-col gap-3">
+                      <TextField
+                        label="New feed type name"
+                        value={row.new_feed_name}
+                        onChange={(event) =>
+                          updateFeedRow(row.key, 'new_feed_name', event.target.value)
+                        }
+                      />
+                      <SelectField
+                        label="Measured as"
+                        value={row.new_feed_dual_unit ? 'dual' : 'single'}
+                        onChange={(event) =>
+                          updateFeedRow(row.key, 'new_feed_dual_unit', event.target.value === 'dual')
+                        }
+                      >
+                        <option value="single">Amount + unit (e.g. 2 cups)</option>
+                        <option value="dual">Flakes + lbs</option>
+                      </SelectField>
+                    </div>
+                  )}
 
                   {row.feed_item_id && dualUnit && (
                     <div className="flex gap-3">
@@ -688,7 +816,7 @@ export default function HeardForm() {
                                 : 'border-gray-300 bg-white text-gray-700 active:bg-gray-100'
                             }`}
                           >
-                            <span>{animal.name || animal.tag_id || 'Unnamed'}</span>
+                            <span>{animal.name || 'Unnamed'}</span>
                             <span>{selected ? 'Selected' : 'Add'}</span>
                           </button>
                         )
@@ -713,6 +841,39 @@ export default function HeardForm() {
             value={form.turnout_notes ?? ''}
             onChange={(event) => update('turnout_notes', event.target.value)}
           />
+
+          <TextField
+            label="Birth date"
+            type="date"
+            value={form.birth_date ?? ''}
+            onChange={(event) => update('birth_date', event.target.value)}
+          />
+          <TextField
+            label="Species"
+            value={form.species}
+            onChange={(event) => update('species', event.target.value)}
+          />
+          <TextField
+            label="Acquired date"
+            type="date"
+            value={form.acquired_date ?? ''}
+            onChange={(event) => update('acquired_date', event.target.value)}
+          />
+          <TextField
+            label="Breed"
+            value={form.breed}
+            onChange={(event) => update('breed', event.target.value)}
+          />
+          <SelectField
+            label="Status"
+            value={form.status}
+            onChange={(event) => update('status', event.target.value)}
+          >
+            <option value="active">Active</option>
+            <option value="sold">Sold</option>
+            <option value="deceased">Deceased</option>
+            <option value="archived">Archived</option>
+          </SelectField>
 
           {error && <p className="text-lg text-red-600">{error}</p>}
 

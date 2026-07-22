@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 
+const MENU_LINKS = [
+  { label: 'Heard', to: '/heard' },
+  { label: 'Hands', to: '/hands' },
+  { label: 'Chores', to: '/chores' },
+  { label: 'Reports', to: '/reports' },
+]
+
 export default function TopNav() {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
@@ -66,10 +73,20 @@ export default function TopNav() {
                 <p className="text-sm capitalize text-gray-500">{profile.role}</p>
               </div>
             )}
+            {MENU_LINKS.map(({ label, to }) => (
+              <Link
+                key={label}
+                to={to}
+                onClick={() => setMenuOpen(false)}
+                className="block px-5 py-3 text-lg text-gray-700 active:bg-gray-100"
+              >
+                {label}
+              </Link>
+            ))}
             <button
               type="button"
               onClick={handleSignOut}
-              className="block w-full px-5 py-3 text-left text-lg text-gray-700 active:bg-gray-100"
+              className="block w-full border-t border-gray-100 px-5 py-3 text-left text-lg text-gray-700 active:bg-gray-100"
             >
               Sign out
             </button>
