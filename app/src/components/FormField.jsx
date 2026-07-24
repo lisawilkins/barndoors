@@ -3,27 +3,27 @@ const controlClass = 'rounded-lg border border-gray-300 px-4 text-lg text-gray-9
 
 export function TextField({ label, className = '', ...props }) {
   return (
-    <label className={`flex flex-col gap-1 ${className}`}>
+    <label className={`flex min-w-0 flex-col gap-1 ${className}`}>
       <span className={labelClass}>{label}</span>
-      <input {...props} className={`h-14 ${controlClass}`} />
+      <input {...props} className={`h-14 w-full min-w-0 ${controlClass}`} />
     </label>
   )
 }
 
 export function TextAreaField({ label, className = '', ...props }) {
   return (
-    <label className={`flex flex-col gap-1 ${className}`}>
+    <label className={`flex min-w-0 flex-col gap-1 ${className}`}>
       <span className={labelClass}>{label}</span>
-      <textarea {...props} rows={3} className={`${controlClass} py-3`} />
+      <textarea {...props} rows={3} className={`w-full min-w-0 ${controlClass} py-3`} />
     </label>
   )
 }
 
 export function SelectField({ label, children, className = '', ...props }) {
   return (
-    <label className={`flex flex-col gap-1 ${className}`}>
+    <label className={`flex min-w-0 flex-col gap-1 ${className}`}>
       <span className={labelClass}>{label}</span>
-      <select {...props} className={`h-14 ${controlClass}`}>
+      <select {...props} className={`h-14 w-full min-w-0 ${controlClass}`}>
         {children}
       </select>
     </label>
