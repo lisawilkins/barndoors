@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   DndContext,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -83,16 +84,16 @@ function HeardListItem({
       className={`scroll-mt-4 ${isDragging ? 'relative z-10' : ''}`}
     >
       <div
-        className={`flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 ${
+        className={`flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-shadow ${
           isExpanded ? 'shadow-sm' : ''
-        } ${isDragging ? 'shadow-md' : ''}`}
+        } ${isDragging ? '-translate-y-1 shadow-lg ring-1 ring-gray-300' : ''}`}
       >
         {isManager && !isExpanded && (
           <button
             type="button"
             {...attributes}
             {...listeners}
-            aria-label="Drag to reorder"
+            aria-label="Hold and drag to reorder"
             style={{ touchAction: 'none' }}
             className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-gray-400 active:cursor-grabbing active:bg-gray-200"
           >
@@ -111,10 +112,16 @@ function HeardListItem({
               <img
                 src={photoUrl}
                 alt={animal.name || 'Animal'}
-                className="h-14 w-14 flex-shrink-0 rounded-lg object-cover"
+                className={`flex-shrink-0 rounded-lg object-cover ${
+                  isExpanded ? 'h-[140px] w-[140px]' : 'h-[100px] w-[100px]'
+                }`}
               />
             ) : (
-              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl">
+              <div
+                className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl ${
+                  isExpanded ? 'h-[140px] w-[140px]' : 'h-[100px] w-[100px]'
+                }`}
+              >
                 🐴
               </div>
             )}
@@ -122,7 +129,7 @@ function HeardListItem({
               <span className="truncate text-xl font-semibold text-gray-900">
                 {animal.name || 'Unnamed'}
               </span>
-              <span className="truncate text-lg text-gray-500">
+              <span className="text-lg text-gray-500">
                 {[age, animal.sex, animal.breed].filter(Boolean).join(' · ') ||
                   'No details yet'}
               </span>
@@ -165,8 +172,13 @@ export default function Heard() {
   const cardRefs = useRef({})
   const scrollTargetId = useRef(null)
 
+  // Mouse: small drag distance starts reorder. Touch: long-press on the grip
+  // (delay) then drag — so scrolling the list and tapping to expand stay easy.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 300, tolerance: 8 },
+    }),
   )
 
   useEffect(() => {
