@@ -143,7 +143,6 @@ function HeardListItem({
                   animalId={animal.id}
                   isManager={isManager}
                   onArchived={onArchived}
-                  photoUrl={photoUrl}
                 />
               )}
             </div>

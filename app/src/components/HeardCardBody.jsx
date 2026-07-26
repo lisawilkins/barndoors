@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { SelectField } from './FormField'
 import { supabase } from '../lib/supabaseClient'
 import { formatDays } from '../lib/turnoutSchedule'
-import { formatAge } from '../lib/formatAge'
 
 const STATUS_LABEL = {
   active: 'Active',
@@ -89,7 +88,7 @@ function SectionHeader({ title, editTo, showEdit }) {
   )
 }
 
-export default function HeardCardBody({ animalId, isManager, onArchived, photoUrl }) {
+export default function HeardCardBody({ animalId, isManager, onArchived }) {
   const [animal, setAnimal] = useState(null)
   const [feedPlan, setFeedPlan] = useState([])
   const [turnoutSchedule, setTurnoutSchedule] = useState([])
@@ -206,23 +205,12 @@ export default function HeardCardBody({ animalId, isManager, onArchived, photoUr
     return <p className="px-4 pb-4 text-lg text-red-600">{error || 'Could not load animal.'}</p>
   }
 
-  const age = formatAge(animal.birth_date)
   const feedNotes = noteLines(animal.feed_notes)
   const turnoutNotes = noteLines(animal.turnout_notes)
   const editPath = `/heard/${animalId}/edit`
 
   return (
     <div className="flex flex-col gap-5 border-t border-gray-200 px-4 pb-4 pt-3">
-      <InfoRow label="Sex" value={animal.sex} />
-
-      {photoUrl && (
-        <img
-          src={photoUrl}
-          alt={animal.name || 'Animal'}
-          className="h-48 w-full rounded-xl object-cover"
-        />
-      )}
-
       <section className="flex flex-col gap-3">
         <SectionHeader title="Feed" editTo={editPath} showEdit={isManager} />
 
@@ -300,10 +288,6 @@ export default function HeardCardBody({ animalId, isManager, onArchived, photoUr
           </div>
         </div>
       </section>
-
-      <InfoRow label="Age" value={age} />
-      <InfoRow label="Species" value={animal.species} />
-      <InfoRow label="Breed" value={animal.breed} />
 
       {isManager ? (
         <section className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4">
