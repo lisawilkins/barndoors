@@ -94,7 +94,7 @@ function HeardListItem({
             {...attributes}
             {...listeners}
             aria-label="Hold and drag to reorder"
-            style={{ touchAction: 'none' }}
+            style={{ touchAction: 'manipulation' }}
             className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-gray-400 active:cursor-grabbing active:bg-gray-200"
           >
             <GripIcon />
