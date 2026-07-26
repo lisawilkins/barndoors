@@ -2,7 +2,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   DndContext,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -83,16 +84,16 @@ function HeardListItem({
       className={`scroll-mt-4 ${isDragging ? 'relative z-10' : ''}`}
     >
       <div
-        className={`flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 ${
+        className={`flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-shadow ${
           isExpanded ? 'shadow-sm' : ''
-        } ${isDragging ? 'shadow-md' : ''}`}
+        } ${isDragging ? '-translate-y-1 shadow-lg ring-1 ring-gray-300' : ''}`}
       >
         {isManager && !isExpanded && (
           <button
             type="button"
             {...attributes}
             {...listeners}
-            aria-label="Drag to reorder"
+            aria-label="Hold and drag to reorder"
             style={{ touchAction: 'none' }}
             className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-gray-400 active:cursor-grabbing active:bg-gray-200"
           >
@@ -171,8 +172,13 @@ export default function Heard() {
   const cardRefs = useRef({})
   const scrollTargetId = useRef(null)
 
+  // Mouse: small drag distance starts reorder. Touch: long-press on the grip
+  // (delay) then drag — so scrolling the list and tapping to expand stay easy.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 300, tolerance: 8 },
+    }),
   )
 
   useEffect(() => {
