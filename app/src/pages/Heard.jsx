@@ -111,10 +111,16 @@ function HeardListItem({
               <img
                 src={photoUrl}
                 alt={animal.name || 'Animal'}
-                className="h-14 w-14 flex-shrink-0 rounded-lg object-cover"
+                className={`flex-shrink-0 rounded-lg object-cover ${
+                  isExpanded ? 'h-[140px] w-[140px]' : 'h-[100px] w-[100px]'
+                }`}
               />
             ) : (
-              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl">
+              <div
+                className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl ${
+                  isExpanded ? 'h-[140px] w-[140px]' : 'h-[100px] w-[100px]'
+                }`}
+              >
                 🐴
               </div>
             )}
@@ -122,7 +128,7 @@ function HeardListItem({
               <span className="truncate text-xl font-semibold text-gray-900">
                 {animal.name || 'Unnamed'}
               </span>
-              <span className="truncate text-lg text-gray-500">
+              <span className="text-lg text-gray-500">
                 {[age, animal.sex, animal.breed].filter(Boolean).join(' · ') ||
                   'No details yet'}
               </span>
