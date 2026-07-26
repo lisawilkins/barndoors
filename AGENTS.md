@@ -227,7 +227,7 @@ Every authenticated screen shares the same top-level layout:
 ## Security review
 
 ### When to review
-Run the `security-review` skill (or an equivalent manual pass) in these situations:
+Run the `review-security` skill (or an equivalent manual pass) in these situations:
 - **Before any production deploy.**
 - After a commit or batch of commits introduces a new dynamic/user-input surface — a new
   form, a new route with params, a new third-party script, or any backend/API code.
@@ -264,7 +264,7 @@ A generic web-app pass will miss the things most likely to bite this stack. Conf
   follow the manager-write / read rules, and uploads are size/type-limited.
 
 ### Full sweep (periodic, not per-commit)
-The `security-review` skill only inspects **pending changes on the current branch** (the diff).
+The `review-security` skill only inspects **pending changes on the current branch** (the diff).
 It does **not** re-audit code that's already committed and unchanged. So run this full sweep of
 the existing RLS policies and Edge Functions periodically and before major milestones:
 
