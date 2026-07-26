@@ -23,16 +23,16 @@ _Last updated: reflects all decisions through Reports section._
 | name | |
 | photo_url | |
 | phone | |
-| email | restricted — see visibility note below |
+| email | visible to everyone (managers and hands) — tappable `mailto:` link on the Hands list |
 | emergency_contact | restricted — see visibility note below |
 | status | `active` \| `inactive` (soft delete) |
 | calendar_feed_token | long random string, powers the subscribable `.ics` feed URL; regeneratable if compromised |
 
 **Auth model:** managers each have an individual Supabase Auth account (email + password) and sign in individually. Hands do not — everyone signs in as a hand through one shared Supabase Auth account gated by a single universal password (see AGENTS.md "Auth"). Because of this, `profiles.id` is **not** foreign-keyed to `auth.users.id` — a manager's row happens to match their real auth id, but a hand's row is just a manager-managed person record (used for shift scheduling, chore assignment, and reports) with no auth account behind it at all.
 
-**Visibility rule:** there is no "own profile" concept anymore, since hand logins are shared. `email` and `emergency_contact` are always hidden from the hand-facing view, for every row. Managers see everything, for everyone.
+**Visibility rule:** there is no "own profile" concept anymore, since hand logins are shared. `emergency_contact` is always hidden from the hand-facing view, for every row. `email` is visible to hands too (added so the Hands list can offer a tappable "email this person" link for everyone, not just managers). Managers see everything, for everyone.
 
-**Implementation:** `profiles_hand_visible()` is a `SECURITY DEFINER` Postgres function that exposes all columns except `email` and `emergency_contact` (always nulled). Hands query this function; managers query `profiles` directly. Do not attempt this restriction in app code alone — enforce at the database layer.
+**Implementation:** `profiles_hand_visible()` is a `SECURITY DEFINER` Postgres function that exposes all columns except `emergency_contact` (always nulled). Hands query this function; managers query `profiles` directly. Do not attempt this restriction in app code alone — enforce at the database layer.
 
 ### `shifts`
 | Field | Notes |

@@ -3,8 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import { TextField, SelectField } from '../components/FormField'
 import { supabase } from '../lib/supabaseClient'
+import { sanitizeEmail, isValidEmail } from '../lib/email'
 
-const BLANK = { name: '', phone: '', role: 'hand', status: 'active' }
+const BLANK = { name: '', phone: '', email: '', role: 'hand', status: 'active' }
 
 // Hands are plain directory records (no login account) — a manager can
 // create one directly here. Managers are different: they need a real
@@ -31,7 +32,7 @@ export default function HandForm() {
 
     supabase
       .from('profiles')
-      .select('name, phone, role, status')
+      .select('name, phone, email, role, status')
       .eq('id', id)
       .single()
       .then(({ data, error: fetchError }) => {
@@ -39,7 +40,7 @@ export default function HandForm() {
         if (fetchError) {
           setError(fetchError.message)
         } else {
-          setForm({ ...data, phone: data.phone ?? '' })
+          setForm({ ...data, phone: data.phone ?? '', email: data.email ?? '' })
         }
         setLoading(false)
       })
@@ -59,10 +60,17 @@ export default function HandForm() {
     setError('')
 
     const { name, phone, status } = form
+    const email = sanitizeEmail(form.email)
+
+    if (email && !isValidEmail(email)) {
+      setError('Enter a valid email address.')
+      setSaving(false)
+      return
+    }
 
     const { error: saveError } = isEdit
-      ? await supabase.from('profiles').update({ name, phone, status }).eq('id', id)
-      : await supabase.from('profiles').insert({ name, phone, status, role: 'hand' })
+      ? await supabase.from('profiles').update({ name, phone, email, status }).eq('id', id)
+      : await supabase.from('profiles').insert({ name, phone, email, status, role: 'hand' })
 
     setSaving(false)
 
@@ -110,6 +118,12 @@ export default function HandForm() {
             type="tel"
             value={form.phone}
             onChange={(event) => update('phone', event.target.value)}
+          />
+          <TextField
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(event) => update('email', sanitizeEmail(event.target.value))}
           />
           <SelectField
             label="Status"

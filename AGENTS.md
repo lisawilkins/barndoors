@@ -81,8 +81,9 @@ targets, minimal typing, and high legibility over density or cleverness.
     reintroduce that FK; it previously meant deleting a hand's login would cascade-delete (or
     be blocked by) their shift/chore/report history.
   - There's no more "own profile" concept for hands (everyone shares one login), so
-    `profiles_hand_visible()` always hides `email` and `emergency_contact` rather than only
-    showing them on your "own" row.
+    `profiles_hand_visible()` always hides `emergency_contact` rather than only showing it on
+    your "own" row. `email` is visible to hands too (the Hands list offers a tappable
+    "email this person" link to both roles, same as the tappable phone number).
   - **One-time setup for the shared Hand account (do this in order, don't skip steps):**
     1. Deploy the `20260721100000_decouple_hand_profiles_from_auth.sql` migration and the
        `create-manager` Edge Function, and ship the updated frontend.
@@ -132,9 +133,9 @@ targets, minimal typing, and high legibility over density or cleverness.
   ask rather than assuming.
 - **Field-level (column) restrictions are different from row-level and need a different
   mechanism.** Where hands should see *some* but not *all* columns of a row they're
-  otherwise allowed to read (e.g. `profiles.email` and `profiles.emergency_contact` are
-  always hidden from hands — there's no "own profile" exception since hand logins are
-  shared, see "Auth" above), use a restricted Postgres **function** (e.g.
+  otherwise allowed to read (e.g. `profiles.emergency_contact` is always hidden from
+  hands — there's no "own profile" exception since hand logins are shared, see "Auth"
+  above), use a restricted Postgres **function** (e.g.
   `profiles_hand_visible()` — a `SECURITY DEFINER` RPC that nulls hidden columns) that
   hands query instead of the base table. Do not attempt this kind of restriction by
   filtering fields in app code — it's easy to leak data if the UI is bypassed (API
@@ -226,7 +227,7 @@ Every authenticated screen shares the same top-level layout:
 ## Security review
 
 ### When to review
-Run the `security-review` skill (or an equivalent manual pass) in these situations:
+Run the `review-security` skill (or an equivalent manual pass) in these situations:
 - **Before any production deploy.**
 - After a commit or batch of commits introduces a new dynamic/user-input surface — a new
   form, a new route with params, a new third-party script, or any backend/API code.
@@ -247,9 +248,9 @@ A generic web-app pass will miss the things most likely to bite this stack. Conf
 - **RLS on every table.** Any new/changed table has RLS *enabled* and its write policy reduces
   to managers only (via `is_manager()`, not client-side checks, not `auth.role()`). No table
   ships with RLS off. See "Roles & permissions."
-- **Column-level hiding stays server-side.** Fields hidden from hands (e.g. `profiles.email`,
-  `emergency_contact`) are nulled by a `SECURITY DEFINER` RPC like `profiles_hand_visible()` —
-  never filtered in app code.
+- **Column-level hiding stays server-side.** Fields hidden from hands (currently just
+  `profiles.emergency_contact`) are nulled by a `SECURITY DEFINER` RPC like
+  `profiles_hand_visible()` — never filtered in app code.
 - **Service-role code authorizes its caller.** Any Edge Function using the service-role/Admin
   API verifies the caller is an authenticated manager *before* doing privileged work, and
   returns only what that caller should see.
@@ -263,7 +264,7 @@ A generic web-app pass will miss the things most likely to bite this stack. Conf
   follow the manager-write / read rules, and uploads are size/type-limited.
 
 ### Full sweep (periodic, not per-commit)
-The `security-review` skill only inspects **pending changes on the current branch** (the diff).
+The `review-security` skill only inspects **pending changes on the current branch** (the diff).
 It does **not** re-audit code that's already committed and unchanged. So run this full sweep of
 the existing RLS policies and Edge Functions periodically and before major milestones:
 
@@ -277,7 +278,7 @@ the existing RLS policies and Edge Functions periodically and before major miles
 3. Confirm there are **no per-table exceptions** — if one exists it should have been flagged
    and agreed, not slipped in.
 4. Re-check column hiding: `profiles_hand_visible()` is still a `SECURITY DEFINER` function (not
-   a plain view) and still nulls `email`/`emergency_contact` for hands, and nothing new started
+   a plain view) and still nulls `emergency_contact` for hands, and nothing new started
    filtering hidden fields in app code instead.
 
 **Edge Functions — everything under `supabase/functions/`:**
