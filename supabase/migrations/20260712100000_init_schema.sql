@@ -174,7 +174,7 @@ create table public.shifts (
 select public.apply_standard_policies('public.shifts');
 
 -- =============================================================================
--- Part 1 — Heard / Head
+-- Part 1 — Herd / Head
 -- =============================================================================
 
 create table public.head (

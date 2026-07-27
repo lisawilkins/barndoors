@@ -4,9 +4,9 @@ import ProtectedRoute from './components/ProtectedRoute'
 import ManagerRoute from './components/ManagerRoute'
 import Login from './pages/Login'
 import Home from './pages/Home'
-import Heard from './pages/Heard'
-import HeardDetail from './pages/HeardDetail'
-import HeardForm from './pages/HeardForm'
+import Herd from './pages/Herd'
+import HerdDetail from './pages/HerdDetail'
+import HerdForm from './pages/HerdForm'
 import Hands from './pages/Hands'
 import HandForm from './pages/HandForm'
 import ManagerForm from './pages/ManagerForm'
@@ -31,38 +31,38 @@ function App() {
           />
 
           <Route
-            path="/heard"
+            path="/herd"
             element={
               <ProtectedRoute>
-                <Heard />
+                <Herd />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/heard/new"
+            path="/herd/new"
             element={
               <ProtectedRoute>
                 <ManagerRoute>
-                  <HeardForm />
+                  <HerdForm />
                 </ManagerRoute>
               </ProtectedRoute>
             }
           />
           <Route
-            path="/heard/:id/edit"
+            path="/herd/:id/edit"
             element={
               <ProtectedRoute>
                 <ManagerRoute>
-                  <HeardForm />
+                  <HerdForm />
                 </ManagerRoute>
               </ProtectedRoute>
             }
           />
           <Route
-            path="/heard/:id"
+            path="/herd/:id"
             element={
               <ProtectedRoute>
-                <HeardDetail />
+                <HerdDetail />
               </ProtectedRoute>
             }
           />

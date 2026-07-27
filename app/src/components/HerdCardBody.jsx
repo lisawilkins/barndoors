@@ -88,7 +88,7 @@ function SectionHeader({ title, editTo, showEdit }) {
   )
 }
 
-export default function HeardCardBody({ animalId, isManager, onArchived }) {
+export default function HerdCardBody({ animalId, isManager, onArchived }) {
   const [animal, setAnimal] = useState(null)
   const [feedPlan, setFeedPlan] = useState([])
   const [turnoutSchedule, setTurnoutSchedule] = useState([])
@@ -207,7 +207,7 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
 
   const feedNotes = noteLines(animal.feed_notes)
   const turnoutNotes = noteLines(animal.turnout_notes)
-  const editPath = `/heard/${animalId}/edit`
+  const editPath = `/herd/${animalId}/edit`
 
   return (
     <div className="flex flex-col gap-5 border-t border-gray-200 px-4 pb-4 pt-3">
@@ -303,7 +303,7 @@ export default function HeardCardBody({ animalId, isManager, onArchived }) {
           </SelectField>
           <p className="text-lg text-gray-500">
             To remove a duplicate, set status to Archived. The record stays in the database but
-            no longer appears on the Heard list.
+            no longer appears on the Herd list.
           </p>
           {statusError && <p className="text-lg text-red-600">{statusError}</p>}
           <button

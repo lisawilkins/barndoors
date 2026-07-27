@@ -1,4 +1,4 @@
--- Manager-controlled display order for the Heard list (drag-and-drop reorder).
+-- Manager-controlled display order for the Herd list (drag-and-drop reorder).
 -- Existing rows are backfilled in their current alphabetical order so the
 -- list doesn't visibly jump the first time this ships. New rows default to
 -- "append at the end" via a sequence, so newly added animals show up last

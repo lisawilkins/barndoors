@@ -12,7 +12,7 @@ spec). This file covers behavior, conventions, and guardrails.
 ## Project summary
 
 BarnDoors is a barn/ranch management web app covering:
-1. **Heard & head records** — livestock data, feed plans, turnout groups, custom fields
+1. **Herd & head records** — livestock data, feed plans, turnout groups, custom fields
 2. **Chores** — daily/weekly/semi-monthly/monthly/quarterly tasks, open or assigned
 3. **People** — managers (full edit access) and hands (read-only), profiles, shift scheduling
 4. **Reports** — print-friendly, filtered views over the above; some reports also offer a
@@ -121,7 +121,7 @@ targets, minimal typing, and high legibility over density or cleverness.
 
 - **Managers:** full create/edit/delete (soft-delete default, hard-delete as a separate
   deliberate action) across all data.
-- **Hands:** **read-only, full stop** — across heard/head, chores, turnout, feed plans,
+- **Hands:** **read-only, full stop** — across herd/head, chores, turnout, feed plans,
   shifts, everything. Hands do not mark chores complete — there is no completion
   tracking in this app. Hands cannot create, edit, or delete records anywhere.
 - Enforce row-level restrictions via Supabase RLS, not client-side checks alone. Every
@@ -152,7 +152,7 @@ baked into it that should not be silently changed:
   are manager-extensible, not hardcoded enums. Read them from the DB, don't hardcode
   as fixed dropdowns in code. Retiring an entry means toggling its `active` flag
   (deactivate/reactivate), not deleting the row — existing references must keep working.
-  Feed items can be managed this way inline from the Heard edit form ("Manage feed
+  Feed items can be managed this way inline from the Herd edit form ("Manage feed
   types"), not a separate settings page.
 - **Animals are identified by name only.** `head.tag_id` still exists as a DB column
   but is no longer shown or collected anywhere in the app (forms, list, card view) —
@@ -173,20 +173,20 @@ baked into it that should not be silently changed:
   individual shift view, and assigned chores view are all filtered queries over
   existing tables — fixed columns, no dynamic column selection in v1.
 
-## Heard list UX
+## Herd list UX
 
-The Heard screen uses **in-place expandable cards**, not a separate detail page as the
+The Herd screen uses **in-place expandable cards**, not a separate detail page as the
 primary pattern:
 
 - Tap a card to expand feed, turnout, and notes inside the list. Only **one card open
   at a time** — opening another collapses the previous one and scrolls the new card to
   the top of the viewport.
 - **Hands** see expanded content read-only. **Managers** see pencil icons on Feed and
-  Turnout sections (link to `/heard/:id/edit`) and a Status control at the bottom of
+  Turnout sections (link to `/herd/:id/edit`) and a Status control at the bottom of
   the expanded card (archive duplicates via `status = 'archived'`, which removes the
-  animal from the active Heard list per soft-delete convention).
-- `/heard/:id` deep links redirect to the list with that card expanded (`?expand=`).
-  Manager create/edit still uses `/heard/new` and `/heard/:id/edit`.
+  animal from the active Herd list per soft-delete convention).
+- `/herd/:id` deep links redirect to the list with that card expanded (`?expand=`).
+  Manager create/edit still uses `/herd/new` and `/herd/:id/edit`.
 - **Managers can drag-and-drop reorder the list** via a grip handle on the left edge of
   each **collapsed** card (hidden while a card is expanded, since the row layout changes
   and dragging while reading expanded content isn't a real use case). Uses `@dnd-kit`
@@ -200,10 +200,10 @@ Every authenticated screen shares the same top-level layout:
 
 - **Top nav (`TopNav`):** "BarnDoors" wordmark on the left (links to `/`), hamburger menu
   button on the right. The hamburger dropdown shows profile name/role, then links to
-  **Heard**, **Hands**, **Chores**, and **Reports** (same four sections as the home screen,
+  **Herd**, **Hands**, **Chores**, and **Reports** (same four sections as the home screen,
   so they're reachable from any page), then **Sign out**.
-- **Home screen (`/`):** post-login landing with large section buttons — **Heard**,
-  **Hands**, **Chores**, **Reports** — linking to `/heard`, `/hands`, `/chores`, and
+- **Home screen (`/`):** post-login landing with large section buttons — **Herd**,
+  **Hands**, **Chores**, **Reports** — linking to `/herd`, `/hands`, `/chores`, and
   `/reports`. This is the primary entry point to major app areas; Calendar isn't on home yet.
 - **Source layout:** pages in `app/src/pages/`, shared UI in `app/src/components/`, helpers
   in `app/src/lib/`.

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 
 const SECTIONS = [
-  { label: 'Heard', to: '/heard' },
+  { label: 'Herd', to: '/herd' },
   { label: 'Hands', to: '/hands' },
   { label: 'Chores', to: '/chores' },
   { label: 'Reports', to: '/reports' },
