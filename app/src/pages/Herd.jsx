@@ -3,7 +3,6 @@ import { Link, useSearchParams } from 'react-router-dom'
 import {
   DndContext,
   MouseSensor,
-  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -16,8 +15,9 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import TopNav from '../components/TopNav'
-import HeardCardBody from '../components/HeardCardBody'
+import HerdCardBody from '../components/HerdCardBody'
 import { useAuth } from '../lib/AuthContext'
+import { ScrollFriendlyTouchSensor } from '../lib/ScrollFriendlyTouchSensor'
 import { supabase } from '../lib/supabaseClient'
 import { formatAge } from '../lib/formatAge'
 
@@ -53,7 +53,7 @@ function GripIcon() {
   )
 }
 
-function HeardListItem({
+function HerdListItem({
   animal,
   photoUrl,
   age,
@@ -94,7 +94,7 @@ function HeardListItem({
             {...attributes}
             {...listeners}
             aria-label="Hold and drag to reorder"
-            style={{ touchAction: 'manipulation' }}
+            style={{ touchAction: 'pan-y' }}
             className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-gray-400 active:cursor-grabbing active:bg-gray-200"
           >
             <GripIcon />
@@ -146,7 +146,7 @@ function HeardListItem({
           >
             <div className="min-h-0 overflow-hidden">
               {showContent && (
-                <HeardCardBody
+                <HerdCardBody
                   animalId={animal.id}
                   isManager={isManager}
                   onArchived={onArchived}
@@ -160,7 +160,7 @@ function HeardListItem({
   )
 }
 
-export default function Heard() {
+export default function Herd() {
   const { isManager } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const [head, setHead] = useState([])
@@ -173,10 +173,11 @@ export default function Heard() {
   const scrollTargetId = useRef(null)
 
   // Mouse: small drag distance starts reorder. Touch: long-press on the grip
-  // (delay) then drag — so scrolling the list and tapping to expand stay easy.
+  // then drag. ScrollFriendlyTouchSensor keeps touchmove passive during the
+  // delay so a thumb starting on the grip can still scroll the list.
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, {
+    useSensor(ScrollFriendlyTouchSensor, {
       activationConstraint: { delay: 300, tolerance: 8 },
     }),
   )
@@ -333,10 +334,10 @@ export default function Heard() {
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold text-gray-900">Heard</h1>
+          <h1 className="text-3xl font-semibold text-gray-900">Herd</h1>
           {isManager && (
             <Link
-              to="/heard/new"
+              to="/herd/new"
               className="flex h-12 items-center justify-center rounded-lg bg-gray-900 px-5 text-lg font-semibold text-white active:bg-gray-700"
             >
               Add animal
@@ -364,7 +365,7 @@ export default function Heard() {
                 const showContent = Boolean(contentByCard[animal.id])
 
                 return (
-                  <HeardListItem
+                  <HerdListItem
                     key={animal.id}
                     animal={animal}
                     photoUrl={photoUrl}

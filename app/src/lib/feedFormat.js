@@ -1,5 +1,5 @@
-// Shared feed-amount formatting, mirrors the logic in HeardCardBody so the
-// Heard detail view and printed feed reports always agree on wording.
+// Shared feed-amount formatting, mirrors the logic in HerdCardBody so the
+// Herd detail view and printed feed reports always agree on wording.
 
 const UNIT_SHORT = {
   cup: 'cup',

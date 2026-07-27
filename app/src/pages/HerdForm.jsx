@@ -40,7 +40,7 @@ function blankFeedRow() {
   }
 }
 
-export default function HeardForm() {
+export default function HerdForm() {
   const { id } = useParams()
   const isEdit = Boolean(id)
   const navigate = useNavigate()
@@ -481,7 +481,7 @@ export default function HeardForm() {
     }
 
     setSaving(false)
-    navigate(isEdit ? `/heard/${headId}` : '/heard')
+    navigate(isEdit ? `/herd/${headId}` : '/herd')
   }
 
   if (loading) {
@@ -880,7 +880,7 @@ export default function HeardForm() {
           <div className="mt-2 flex gap-3">
             <button
               type="button"
-              onClick={() => navigate(isEdit ? `/heard/${id}` : '/heard')}
+              onClick={() => navigate(isEdit ? `/herd/${id}` : '/herd')}
               className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
             >
               Cancel

@@ -42,7 +42,7 @@ index page, and the first real report at `/reports/feed-schedule`.
   item. Column order is fixed — Horse name, Alfalfa, Grass, Grain, SR Pro,
   SimpliFly, then any remaining feed items (Calf Manna, plus anything added
   via "New") alphabetically, then Feed notes last. Built to reuse the same
-  amount-formatting rules as the Heard detail view (`lib/feedFormat.js`).
+  amount-formatting rules as the Herd detail view (`lib/feedFormat.js`).
 - Sized to print on one 8.5"x11" sheet, single-sided, landscape (set via a
   global `@page { size: letter landscape }` in `index.css` — fine while this
   is the only print report; will need named `@page` rules if a future report
@@ -85,12 +85,12 @@ by a single universal password.
 - Still to do: delete the old individual hand `auth.users` accounts now that
   their person records are decoupled and safe to keep.
 
-## 2026-07-13 — Synced AGENTS.md with Heard UX and turnout/photo decisions
+## 2026-07-13 — Synced AGENTS.md with Herd UX and turnout/photo decisions
 
 Updated `AGENTS.md` so agents don't regress recent settled choices from this build
 pass:
 
-- Heard list uses in-place expandable cards (one open at a time, scroll-to-top),
+- Herd list uses in-place expandable cards (one open at a time, scroll-to-top),
   not a separate detail page as the default pattern.
 - Turnout groups include standing `days_of_week` weekly schedule (not daily logging).
 - One current photo per head in v1; client-side resize/compress before Storage upload.
@@ -103,11 +103,11 @@ detail page.
 
 - New migration adds `days_of_week` (`text[]` of `mon`–`sun`) to `turnout_groups`,
   documented in `barndoors-schema.md`.
-- `HeardForm.jsx` now has a repeatable "Turnout schedule" section: location picker
+- `HerdForm.jsx` now has a repeatable "Turnout schedule" section: location picker
   (from `turnout_locations`), large day-of-week toggle buttons, and buddy picker
   (other active animals). Saving creates/reuses a matching `turnout_groups` row
   and syncs `turnout_group_members`.
-- `HeardDetail.jsx` shows each schedule entry as location + days + buddies (same
+- `HerdDetail.jsx` shows each schedule entry as location + days + buddies (same
   card style as feed items).
 - Shared helpers in `app/src/lib/turnoutSchedule.js` for load/save/format.
 
@@ -115,17 +115,17 @@ Requires `supabase db push` for the new migration before schedule saves work.
 
 ## 2026-07-12 — Read-only animal detail view (hands can browse feed & turnout)
 
-Opening an animal from the Heard list no longer drops straight into edit mode.
-Added `HeardDetail.jsx` as the default `/heard/:id` screen for everyone
+Opening an animal from the Herd list no longer drops straight into edit mode.
+Added `HerdDetail.jsx` as the default `/herd/:id` screen for everyone
 (managers and hands):
 
 - Layout follows the mockup: name/age/breed + photo header, FEED table with
   notes, TURNOUT location/buddies with notes — all read-only.
 - Pencil icons on the FEED and TURNOUT section headers link to
-  `/heard/:id/edit`, and only show for managers.
+  `/herd/:id/edit`, and only show for managers.
 - Hands can now tap any animal in the list and see feed plan + turnout info
   (RLS already allowed read; this was a missing UI path).
-- Edit form moved to `/heard/:id/edit` (manager-only). Saving an edit returns
+- Edit form moved to `/herd/:id/edit` (manager-only). Saving an edit returns
   to the detail view; adding a new animal still returns to the list.
 
 Turnout "days" from the mockup are not shown yet — the schema has locations and
@@ -138,7 +138,7 @@ Each animal is supposed to have a picture; the `head_photos` table and public
 already created back when the initial schema was pushed, but nothing in the app
 used them yet. Wired it up:
 
-- `HeardForm.jsx` now has a "Photo" section at the top with a live preview, an
+- `HerdForm.jsx` now has a "Photo" section at the top with a live preview, an
   "Add photo"/"Replace photo" file picker, and a "Remove" button. New/replacement
   photos upload to Supabase Storage on save (after the animal record itself is
   saved, since the upload path needs the animal's ID); replacing a photo deletes
@@ -147,7 +147,7 @@ used them yet. Wired it up:
   — the `head_photos` table technically supports multiple rows per animal for
   future history/gallery use, but the app enforces "replace, don't add" for now by
   always updating the same row once one exists.
-- `Heard.jsx` list now shows a small thumbnail next to each animal's name (a horse
+- `Herd.jsx` list now shows a small thumbnail next to each animal's name (a horse
   emoji placeholder when there's no photo yet), fetched in one batched query
   rather than one request per animal.
 - Online-only upload, no offline queue — matches the schema doc's existing note on
@@ -163,7 +163,7 @@ used them yet. Wired it up:
 
 The "Add/edit animal" form only had a free-text "Feed notes" box; the actual
 `feed_items`/`head_feed_plan` tables (built in the initial migration) had no UI yet.
-Added a repeatable "feed item + amount" section to `HeardForm.jsx`:
+Added a repeatable "feed item + amount" section to `HerdForm.jsx`:
 
 - Manager picks from the active `feed_items` list (Alfalfa, Grass, Grain, SR Pro,
   SimpliFly, Calf Manna, or any manager-added "New" item) and can add multiple rows
@@ -222,12 +222,12 @@ own dashboard now agree going forward. Existing test accounts created before thi
 fix still show blank in the dashboard — not retroactively fixed, low priority
 since they were test data.
 
-## 2026-07-12 — Manager-only add/edit forms for Heard and Chores, edit for Hands
+## 2026-07-12 — Manager-only add/edit forms for Herd and Chores, edit for Hands
 
 Added the write side of the app, so managers can actually create/edit real
 records instead of only viewing seeded lookup data:
 
-- `Heard` and `Chores` each got a full add + edit form (manager-only, guarded by
+- `Herd` and `Chores` each got a full add + edit form (manager-only, guarded by
   a new `ManagerRoute` on top of the existing session guard — client-side UX
   only, the real enforcement is still the database's RLS policies).
 - `Hands` got edit-only (name, phone, role, status) — deliberately did not build
@@ -267,7 +267,7 @@ migrations recorded on the remote) rather than trusting the CLI's ambiguous
 "Finished supabase db push" message, which — as seen earlier in this same
 session — prints even when a push actually failed.
 
-## 2026-07-12 — First real Supabase-backed screens (auth + Heard/Hands/Chores)
+## 2026-07-12 — First real Supabase-backed screens (auth + Herd/Hands/Chores)
 
 Wired the app up to the live database for real, past just the setup:
 
@@ -277,7 +277,7 @@ Wired the app up to the live database for real, past just the setup:
   `authenticated`). New signups default to `hand` via the existing DB trigger; a
   manager promotes trusted accounts from the Supabase dashboard for now — an in-app
   "manage people" screen is a follow-up, not built yet.
-- `Heard`, `Hands`, and `Chores` now show real, read-only lists from the database
+- `Herd`, `Hands`, and `Chores` now show real, read-only lists from the database
   instead of placeholders. `Hands` is role-aware: managers query `profiles`
   directly, hands query `profiles_hand_visible`, matching the field-visibility rule
   in the schema doc.
@@ -340,7 +340,7 @@ Added the two foundational planning docs before any app code was written:
   (offline writes, calendar OAuth, PDF/CSV export) so agents don't reintroduce them
   without asking first.
 - **barndoors-schema.md** — the source-of-truth data model (tables and fields),
-  starting with the People (`profiles`, `shifts`) and Heard/Head sections.
+  starting with the People (`profiles`, `shifts`) and Herd/Head sections.
 
 These files capture the settled product and architecture decisions from planning.
 Pushed to `origin/main`.

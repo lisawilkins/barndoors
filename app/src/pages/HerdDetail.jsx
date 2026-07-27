@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
-export default function HeardDetail() {
+export default function HerdDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
 
   useEffect(() => {
-    navigate(`/heard?expand=${id}`, { replace: true })
+    navigate(`/herd?expand=${id}`, { replace: true })
   }, [id, navigate])
 
   return null

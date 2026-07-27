@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 
 const MENU_LINKS = [
-  { label: 'Heard', to: '/heard' },
+  { label: 'Herd', to: '/herd' },
   { label: 'Hands', to: '/hands' },
   { label: 'Chores', to: '/chores' },
   { label: 'Reports', to: '/reports' },
