@@ -63,14 +63,15 @@ export default function ChoreList() {
   const dirty = useRef(false)
 
   // Portrait by default: it's the shape most people have loaded, and a chore
-  // list is a tall narrow thing. Landscape is there for lists long enough that
-  // two columns are the only way they fit on one sheet.
+  // list is a tall narrow thing. Landscape gives wider lines and two columns,
+  // which cuts the page count on a long list.
   const [orientation, setOrientation] = useState('portrait')
   const previewRef = useRef(null)
+  const sheetRef = useRef(null)
   const [previewScale, setPreviewScale] = useState(1)
+  const [sheetHeight, setSheetHeight] = useState(0)
 
   const sheet = printableArea(orientation)
-  const sheetHeight = sheet.height
 
   // Only takes effect while this page is mounted — index.css sets `landscape`
   // globally for the feed schedule report, which must keep it.
@@ -91,6 +92,15 @@ export default function ChoreList() {
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
   }, [isPrintMode, sheet.width])
+
+  // A CSS transform doesn't change layout, so the scaled-down preview would
+  // otherwise reserve its full unscaled height and leave a long blank gap
+  // beneath. Measuring the sheet — which may now be several pages tall — lets
+  // the container collapse to what's actually visible.
+  useEffect(() => {
+    if (!isPrintMode) return
+    setSheetHeight(sheetRef.current?.scrollHeight ?? 0)
+  }, [isPrintMode, orientation, nodes, title, description, previewScale])
 
   useEffect(() => {
     let active = true
@@ -319,10 +329,11 @@ export default function ChoreList() {
               transform is dropped for print by .chore-sheet-preview. */}
           <div ref={previewRef} className="overflow-hidden print:overflow-visible">
             <div
+              ref={sheetRef}
               className="chore-sheet-preview origin-top-left"
               style={{
                 transform: `scale(${previewScale})`,
-                height: previewScale < 1 ? sheetHeight * previewScale : undefined,
+                height: previewScale < 1 && sheetHeight ? sheetHeight * previewScale : undefined,
               }}
             >
               <ChoreListPrint
