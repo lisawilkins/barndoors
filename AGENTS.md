@@ -13,7 +13,7 @@ spec). This file covers behavior, conventions, and guardrails.
 
 BarnDoors is a barn/ranch management web app covering:
 1. **Herd & head records** — livestock data, feed plans, turnout groups, custom fields
-2. **Chores** — daily/weekly/semi-monthly/monthly/quarterly tasks, open or assigned
+2. **Chores** — nested, ordered lists a manager writes and a hand works top to bottom
 3. **People** — managers (full edit access) and hands (read-only), profiles, shift scheduling
 4. **Reports** — print-friendly, filtered views over the above; some reports also offer a
    plain CSV download (no PDF export in v1)
@@ -148,12 +148,13 @@ baked into it that should not be silently changed:
 
 - **Soft delete by default.** Most tables use a `status`/`active` field rather than
   physical deletion. Hard delete is a separate, explicit action.
-- **Extensible lists via "New."** `feed_items`, `turnout_locations`, and `chore_types`
-  are manager-extensible, not hardcoded enums. Read them from the DB, don't hardcode
+- **Extensible lists via "New."** `feed_items` and `turnout_locations` are
+  manager-extensible, not hardcoded enums. Read them from the DB, don't hardcode
   as fixed dropdowns in code. Retiring an entry means toggling its `active` flag
   (deactivate/reactivate), not deleting the row — existing references must keep working.
   Feed items can be managed this way inline from the Herd edit form ("Manage feed
-  types"), not a separate settings page.
+  types"), not a separate settings page. (`chore_types` used to work this way too;
+  it's gone — see "Chores" below.)
 - **Animals are identified by name only.** `head.tag_id` still exists as a DB column
   but is no longer shown or collected anywhere in the app (forms, list, card view) —
   treat it as deprecated and don't reintroduce a "Tag ID" field without asking.
@@ -163,15 +164,18 @@ baked into it that should not be silently changed:
   in multiple groups). Each group defines a **location**, **days of week** (`days_of_week`
   on `turnout_groups` — `mon` through `sun`), and **members** (buddies). This is a
   standing weekly schedule, not a daily log and not date-based reformation. The act of
-  turning a group out is a **chore** (`chore_types.name = 'Turnout'`), not a separate
-  logged action.
-- **Chore instructions ("read more") are fixed per chore type**, not per individual
-  chore instance or per assignee. Don't add per-instance instruction overrides.
+  turning a group out is just a line on a chore list, not a separate logged action.
+- **Chores are written lists, not a catalog.** A manager types the list; a line of text
+  *is* the chore. There is no `chore_types` picker, no AM/PM field, no recurrence and no
+  assignee — "AM Chores" is simply a list title, and "deep clean on Wednesdays" is
+  something the manager writes into the line. Don't reintroduce any of those fields.
 - **No chore completion tracking.** Hands never mark chores done; don't build a
-  completion table or UI for this.
-- **Reports are views, not new data.** Feed chart, turnout chart, monthly shifts,
-  individual shift view, and assigned chores view are all filtered queries over
-  existing tables — fixed columns, no dynamic column selection in v1.
+  completion table or UI for this. The tick boxes a hand sees while working a list are
+  local to the page, cleared on reload, and never written to the database.
+- **Reports are views, not new data.** Feed chart, turnout chart, monthly shifts and
+  individual shift view are all filtered queries over existing tables — fixed columns,
+  no dynamic column selection in v1. (A chore list prints from the list itself, not
+  from `/reports`.)
 
 ## Herd list UX
 
@@ -193,6 +197,35 @@ primary pattern:
   (core + sortable + utilities) — the one approved exception to "flag new dependencies
   first." Order persists to `head.sort_order` (see `barndoors-schema.md`); the list query
   orders by `sort_order` instead of `name`. Hands never see the grip and cannot reorder.
+
+## Chores UX
+
+Designed in the Claude Design project **Barndoors Chores Redesign** — check there before
+changing the layout rather than inventing structure. Four levels, of which the middle two
+may carry a note:
+
+```
+List        title, description        "AM Chores" — one printable sheet
+  Item        text, note              "Initial Barn Check" — numbered on the sheet
+    Subitem     text, note            "Turn on lights…" — the instruction a hand follows
+      SubSubItem  text only           "Fly mask on" — nesting stops here
+```
+
+- `/chores` is an index of lists. `/chores/:listId` opens one and picks its own mode from
+  the reader's role — managers get a read view with an **Edit** button, hands get the same
+  view plus tick boxes.
+- **Editing is a live outline**, not a form: every row is already a text field. Return
+  makes the next row, Tab/Shift-Tab nests and unnests, Backspace on an empty row deletes
+  it and returns the cursor to the row above. No per-row controls appear until a row is
+  focused. Changes save as you type via `save_chore_list_items`.
+- Reordering is drag-only, via `@dnd-kit` with the same `ScrollFriendlyTouchSensor` as the
+  Herd list. Dragging a row carries its nested rows with it.
+- **The printed sheet is a separate layout**, not the web view with controls hidden: real
+  checkboxes to tick with a pen, and SubSubItems collapsed onto one line to save vertical
+  space. The printout is the primary artifact in the barn.
+- Open questions on the design doc, not yet decided: multi-paragraph notes, duplicating a
+  list, whether a hand's ticks should persist across a shift, and whether the printed
+  sheet should include the description.
 
 ## App shell & home screen
 

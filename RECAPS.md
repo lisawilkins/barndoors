@@ -6,6 +6,55 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-07-29 — Rebuilt Chores as nested, printable lists
+
+Replaced the whole Chores section. The old one asked a manager to pick a chore
+type from a fixed catalog and tag it AM or PM, daily or weekly, open or assigned
+to someone. The barn manager's real list doesn't work like that — it's a
+numbered procedure you follow top to bottom, because horses have to be moved and
+fed in a set order. The old screen even sorted chores alphabetically inside each
+group, which is the one thing that must not happen.
+
+Now a manager writes the list the way they'd write it on paper. Every line is
+already a text box: press Return for the next line, Tab to tuck a line under the
+one above, Backspace on a blank line to remove it. Nothing appears beside a line
+until you tap it, so a sixty-line list isn't covered in buttons. Drag the dots to
+move a line and anything nested under it comes along. Any item or step can carry
+a **note** — an explanation field that didn't exist before. Changes save as you
+type, and deleting something offers an Undo.
+
+A hand sees the same list, read-only, plus a tick box on each step to keep their
+place mid-shift. **Those ticks are never saved** and clear when the page is
+reopened — this app still has no chore completion tracking.
+
+Printing gets its own layout rather than the screen with buttons hidden: real
+checkboxes to tick with a pen, and the smallest details tucked onto one line to
+save paper.
+
+Structure is four levels — **List → Item → Subitem → SubSubItem** — with notes
+allowed on the middle two.
+
+Some notes on how this went:
+
+- The design went through a few rounds. An earlier version of this editor was
+  scrapped for being confusing and bloated — it had a tab strip, a settings form
+  and indent/outdent buttons where the design wanted one inline heading. The
+  version that shipped was designed first, in the Claude Design project
+  **Barndoors Chores Redesign**, and built from it.
+- `chore_types`, `period`, `recurrence` and `assigned_to` are all gone from the
+  product. "AM Chores" is just a list title now, and "deep clean on Wednesdays"
+  is something the manager types into the line.
+- The database changes were kept **additive** — nothing was dropped, so it's
+  reversible. The old `chores` and `chore_types` tables are still sitting there,
+  along with a `chore_sections` table an intermediate design needed and the final
+  one doesn't. Clearing those out is a separate decision.
+- Worth remembering: a "belt and braces" permission tightening on the save
+  function silently did nothing at first. Supabase grants access to the
+  signed-out role *by name*, so revoking it from "everyone" left that grant in
+  place. Only testing against the live database caught it — the migration
+  applying cleanly proved nothing. The real protection (row-level security) was
+  working the whole time.
+
 ## 2026-07-22 — Added a security review section to AGENTS.md
 
 Added a **Security review** section to `AGENTS.md` so agents (and I) have a
