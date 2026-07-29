@@ -157,29 +157,82 @@ Many-to-many — a head can belong to multiple groups; a group can have just one
 
 ## Part 2 — Chores
 
-### `chore_types`
-Preloaded: Feed, Muck stalls, Clean waters, Clean troughs, Clean out old hay, Fly spray, Blow/Sweep Barn, Misters On/Off, Replace fly traps, Replace fly spray, Trash, Shavings, Turnout — extensible via "New."
+Chores are **saved, ordered lists** — a written procedure, not a pool of independent tasks.
+The barn manager's real list has to be performed in order (horses are moved and fed in a
+specific sequence), so ordering and nesting are the whole point of this model.
+
+Structure per the Claude Design project *Barndoors Chores Redesign* — four levels, of which
+the middle two may carry a note:
+
+```
+chore_lists    level 0  List        title, description   "AM Chores" — one printable sheet
+  chore_items  level 1  Item        text, note           "Initial Barn Check" — numbered
+               level 2  Subitem     text, note           "Turn on lights…" — the instruction
+               level 3  SubSubItem  text only            "Fly mask on" — nesting stops here
+```
+
+Levels 1/2/3 are stored as `chore_items.depth` **0/1/2**. Items hang directly off a list via
+`chore_items.list_id`; there is no section layer.
+
+### `chore_lists`
 | Field | Notes |
 |---|---|
 | id | |
-| name | |
-| instructions | optional "read more" text, fixed per type (e.g. filled in for Shavings, blank for Muck Stalls) |
-| active | |
+| name | "Summer", "Grooming" |
+| description | optional |
+| status | `active` \| `archived` — soft delete |
+| sort_order | tab order on the Chores screen |
+| created_at / updated_at / updated_by | |
 
-### `chores`
+### `chore_items`
 | Field | Notes |
 |---|---|
 | id | |
-| chore_type_id | FK → chore_types |
-| period | `AM` \| `PM` |
-| assignment_type | `open` \| `assigned-once` \| `assigned-recurring` |
-| assigned_to | FK → profiles, nullable if open |
-| recurrence | `none` \| `daily` \| `weekly` \| `semi-monthly` \| `monthly` \| `quarterly` |
-| recurrence_details | day-of-week / day-of-month as needed per recurrence type |
-| created_by | |
-| status | `active` \| `archived` |
+| list_id | FK → chore_lists, **on delete cascade** — the list this row belongs to |
+| section_id | **legacy**, nullable. See "Deprecated" below |
+| parent_id | FK → chore_items, **on delete cascade**; null only at depth 0 |
+| depth | `0` Item \| `1` Subitem \| `2` SubSubItem (check constraint) |
+| body | the line itself |
+| note | optional. **Items and Subitems only** — a SubSubItem never has one, enforced in the save function |
+| sort_order | document-order position within the list; only ever compared between siblings |
 
-*Semi-monthly = roughly every 2 weeks / twice a month.*
+A check constraint (`chore_items_has_one_owner`) requires exactly one of `list_id` /
+`section_id`, so a row can't belong to both a list and a section.
+
+### `chore_sections`
+**Unused by the app.** Kept so the change that moved items onto lists stayed additive and
+reversible; nothing reads or writes it. Removing it is a separate, flagged decision.
+
+**The displayed number is never stored.** Depth-0 items are numbered 1..n from `sort_order` at
+render time, so inserting or reordering renumbers automatically and can't drift.
+
+**Recurrence is plain text, not a field.** The manager writes it where it belongs in the
+procedure — "Deep clean on Wednesdays", "Mondays take out the trash" — exactly as the real
+list reads.
+
+### `save_chore_list_items(p_list_id uuid, p_items jsonb)`
+Replaces one list's items in a single transaction. The editor saves as you type and holds the
+whole outline in memory; writing row-by-row from the browser would leave a half-applied tree
+if one request failed. Also nulls the note on any depth-2 row, so the "SubSubItems carry no
+note" rule holds server-side and not just in the UI.
+
+**`security invoker`** — the managers-only RLS policies on `chore_items` are the
+authorization. Do not change it to `security definer`.
+
+`execute` is revoked from **both** `public` and `anon` (Supabase's default privileges grant it
+to `anon` by name, so revoking from `public` alone does nothing) and granted only to
+`authenticated`. That's defence in depth, not the actual check: a hand is `authenticated` too,
+and RLS is what makes the call a no-op for them.
+
+`save_chore_section_items(p_section_id, p_items)` is its unused predecessor, kept alongside
+the `chore_sections` table.
+
+### Deprecated
+
+~~`chore_types`~~ and ~~`chores`~~ — **superseded by `chore_lists`.** The old model was keyed on
+chore type + AM/PM + `assignment_type` + `recurrence`, with no ordering and no nesting, which
+doesn't describe how chores are actually done here. The tables still exist in the database but
+nothing in the app reads them; dropping them is a separate, flagged migration.
 
 ~~`chore_completions`~~ — **dropped.** Hands do not mark chores complete; no completion tracking needed for v1.
 
@@ -195,7 +248,7 @@ No new tables — reports are filtered, fixed-layout, **print-friendly browser v
 | Turnout chart | `turnout_groups` × `turnout_group_members` × `turnout_locations` × `head` | e.g. location |
 | Monthly shifts view | `shifts` (all profiles) | month |
 | Individual shift view | `shifts` | profile_id |
-| Assigned chores view | `chores` | date, assigned_to |
+| Chore sheet | `chore_lists` × `chore_items` | *(printed from the list itself, not from /reports)* |
 
 Fixed columns per report, not a custom column-picker — deferred to a later iteration once real usage shows which variables matter most.
 
