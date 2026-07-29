@@ -179,26 +179,6 @@ export function visibleNodes(nodes) {
   return nodes.filter((n) => n.text.trim() !== '')
 }
 
-/**
- * Group SubSubItems under the Subitem they belong to. The printed sheet
- * collapses them onto one line to save vertical space, so it needs them
- * attached rather than as separate rows.
- */
-export function groupForPrint(nodes) {
-  const rows = []
-  for (const node of visibleNodes(nodes)) {
-    if (node.depth === 3 && rows.length > 0) {
-      const parent = rows[rows.length - 1]
-      if (parent.depth === 2) {
-        parent.details.push(node.text)
-        continue
-      }
-    }
-    rows.push({ ...node, details: [] })
-  }
-  return rows
-}
-
 // ---------------------------------------------------------------------------
 // Database translation — design levels 1-3 <-> stored depth 0-2
 // ---------------------------------------------------------------------------
