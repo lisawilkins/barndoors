@@ -11,7 +11,7 @@ import Hands from './pages/Hands'
 import HandForm from './pages/HandForm'
 import ManagerForm from './pages/ManagerForm'
 import Chores from './pages/Chores'
-import ChoreForm from './pages/ChoreForm'
+import ChoreList from './pages/ChoreList'
 import Reports from './pages/Reports'
 import FeedScheduleReport from './pages/FeedScheduleReport'
 
@@ -114,23 +114,13 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* One route for a list: it picks read / edit / worker / print
+              itself, since the mode depends on the reader's role. */}
           <Route
-            path="/chores/new"
+            path="/chores/:listId"
             element={
               <ProtectedRoute>
-                <ManagerRoute>
-                  <ChoreForm />
-                </ManagerRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/chores/:id"
-            element={
-              <ProtectedRoute>
-                <ManagerRoute>
-                  <ChoreForm />
-                </ManagerRoute>
+                <ChoreList />
               </ProtectedRoute>
             }
           />
