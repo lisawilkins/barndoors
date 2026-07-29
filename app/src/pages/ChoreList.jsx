@@ -8,6 +8,7 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { fetchList, fetchListItems, saveListDetails, saveListItems } from '../lib/choreLists'
 import { fromDbRows, restoreNodes, toSavePayload } from '../lib/choreOutline'
+import { printableArea, usePageOrientation } from '../lib/pageSetup'
 
 // One chore list, in whichever mode the reader is entitled to:
 //
@@ -49,6 +50,9 @@ export default function ChoreList() {
   // A freshly created list arrives as ?edit=1 so the manager lands on the
   // cursor rather than an empty read view.
   const [mode, setMode] = useState(searchParams.get('edit') ? 'edit' : 'read')
+  // Hoisted above the hooks below, which depend on it — the loading/missing
+  // early returns sit between here and where the rest of the view is derived.
+  const isPrintMode = mode === 'print'
   const [checked, setChecked] = useState({})
   const [toast, setToast] = useState(null)
   const [saveStatus, setSaveStatus] = useState('saved')
@@ -57,6 +61,36 @@ export default function ChoreList() {
 
   const saveTimer = useRef(null)
   const dirty = useRef(false)
+
+  // Portrait by default: it's the shape most people have loaded, and a chore
+  // list is a tall narrow thing. Landscape is there for lists long enough that
+  // two columns are the only way they fit on one sheet.
+  const [orientation, setOrientation] = useState('portrait')
+  const previewRef = useRef(null)
+  const [previewScale, setPreviewScale] = useState(1)
+
+  const sheet = printableArea(orientation)
+  const sheetHeight = sheet.height
+
+  // Only takes effect while this page is mounted — index.css sets `landscape`
+  // globally for the feed schedule report, which must keep it.
+  usePageOrientation(isPrintMode ? orientation : null)
+
+  // Shrink the true-size sheet to whatever width the screen has. Print resets
+  // the transform, so this only affects the on-screen preview.
+  useEffect(() => {
+    if (!isPrintMode) return undefined
+
+    function fit() {
+      const available = previewRef.current?.clientWidth
+      if (!available) return
+      setPreviewScale(Math.min(1, available / sheet.width))
+    }
+
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [isPrintMode, sheet.width])
 
   useEffect(() => {
     let active = true
@@ -196,7 +230,7 @@ export default function ChoreList() {
   }
 
   const isEditing = mode === 'edit' && isManager
-  const isPrint = mode === 'print'
+  const isPrint = isPrintMode
   const displayTitle = title.trim() || 'Untitled list'
 
   return (
@@ -235,7 +269,7 @@ export default function ChoreList() {
         />
       ) : isPrint ? (
         <main className="flex flex-col gap-3.5 p-4 print:p-0">
-          <div className="flex items-center justify-between gap-2.5 print:hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2.5 print:hidden">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
               Print preview
             </span>
@@ -256,7 +290,49 @@ export default function ChoreList() {
               </button>
             </div>
           </div>
-          <ChoreListPrint title={displayTitle} description={description} nodes={nodes} />
+
+          <div
+            role="radiogroup"
+            aria-label="Page orientation"
+            className="flex gap-1 self-start rounded-[9px] bg-gray-100 p-1 print:hidden"
+          >
+            {['portrait', 'landscape'].map((value) => (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={orientation === value}
+                onClick={() => setOrientation(value)}
+                className={`h-10 rounded-[7px] px-4 text-[14.5px] font-semibold capitalize ${
+                  orientation === value
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 active:bg-gray-200'
+                }`}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+
+          {/* The sheet is rendered at true page size so the preview matches the
+              printer. On screen it's scaled down to fit the viewport; the
+              transform is dropped for print by .chore-sheet-preview. */}
+          <div ref={previewRef} className="overflow-hidden print:overflow-visible">
+            <div
+              className="chore-sheet-preview origin-top-left"
+              style={{
+                transform: `scale(${previewScale})`,
+                height: previewScale < 1 ? sheetHeight * previewScale : undefined,
+              }}
+            >
+              <ChoreListPrint
+                title={displayTitle}
+                description={description}
+                nodes={nodes}
+                orientation={orientation}
+              />
+            </div>
+          </div>
         </main>
       ) : (
         <main className="flex flex-col gap-3.5 px-4 py-5">

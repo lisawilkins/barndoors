@@ -43,4 +43,17 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* The chore sheet is laid out at true page size and scaled down on screen so
+     the preview matches the printer. Printing must use it at 1:1 — the
+     transform is purely a screen-fitting device. */
+  .chore-sheet-preview {
+    transform: none !important;
+    height: auto !important;
+  }
+
+  .chore-sheet {
+    width: auto !important;
+    min-height: 0 !important;
+  }
 }
