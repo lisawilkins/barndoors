@@ -1,18 +1,21 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
-import { TextField } from '../components/FormField'
+import { TextField, SelectField } from '../components/FormField'
 import { supabase } from '../lib/supabaseClient'
 
-// Creates a brand-new Manager login (real Supabase Auth account). This has
-// to go through the create-manager Edge Function rather than a plain client
-// call — see that function's header comment for why.
+// Creates a brand-new Manager or Admin login (real Supabase Auth account) —
+// the two roles have identical app permissions, this just categorizes
+// technology admin vs. barn manager (see AGENTS.md). This has to go through
+// the create-manager Edge Function rather than a plain client call — see
+// that function's header comment for why.
 export default function ManagerForm() {
   const navigate = useNavigate()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState('manager')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -22,7 +25,7 @@ export default function ManagerForm() {
     setError('')
 
     const { data, error: invokeError } = await supabase.functions.invoke('create-manager', {
-      body: { name, email, password },
+      body: { name, email, password, role },
     })
 
     setSaving(false)
@@ -40,12 +43,16 @@ export default function ManagerForm() {
       <TopNav />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <h1 className="text-3xl font-semibold text-gray-900">Add manager</h1>
+        <h1 className="text-3xl font-semibold text-gray-900">Add manager or admin</h1>
         <p className="text-lg text-gray-500">
-          Creates a new manager login. They'll sign in with the email and password below.
+          Creates a new login with full access. They'll sign in with the email and password below.
         </p>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <SelectField label="Role" value={role} onChange={(event) => setRole(event.target.value)}>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+          </SelectField>
           <TextField
             label="Name"
             required
@@ -85,7 +92,7 @@ export default function ManagerForm() {
               disabled={saving}
               className="flex h-14 flex-1 items-center justify-center rounded-lg bg-gray-900 text-lg font-semibold text-white active:bg-gray-700 disabled:opacity-50"
             >
-              {saving ? 'Creating…' : 'Create manager'}
+              {saving ? 'Creating…' : role === 'admin' ? 'Create admin' : 'Create manager'}
             </button>
           </div>
         </form>

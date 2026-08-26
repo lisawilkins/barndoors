@@ -6,6 +6,31 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-08-25 — Added an "admin" role, separate from manager but with the same permissions
+
+Managers and admins were being conflated — Lisa Wilkins (the technology admin) had a
+`manager` row same as any barn manager, with no way to tell them apart. Added `admin` as a
+third `profiles.role` value with **identical permissions** to manager; it exists purely as a
+category, not a permission tier.
+
+- Migration `20260825100000_add_admin_role.sql`: widened the `profiles.role` check
+  constraint to allow `admin`, and updated the single `is_manager()` helper function to
+  return true for `role in ('manager', 'admin')`. Every RLS write policy and both storage
+  bucket policies already call that one function, so nothing else needed to change for admin
+  to get full access. Also recategorized the existing `lisa@lisawilkins.com` row from
+  `manager` to `admin`.
+- `create-manager` Edge Function now accepts a `role` field (`manager` or `admin`, defaults
+  to `manager`) and promotes the new account to whichever was requested; it also now accepts
+  either an existing manager *or* admin as the caller (previously manager-only).
+- "Add manager" screen (`ManagerForm.jsx`, `/hands/new-manager`) got a Role dropdown
+  (Manager/Admin) and was retitled "Add manager or admin."
+- Hands list badge now shows "Manager" or "Admin" (previously only showed a "Manager" pill).
+- `AuthContext`'s `isManager` flag (what every manager-only UI check in the app reads) now
+  returns true for both roles, so no other screen needed changes — admin accounts sign in
+  through the same "Manager" button on `/login` as before, there's no separate login path.
+- Updated `AGENTS.md` and `barndoors-schema.md` to document the new role and its
+  permission-identical relationship to manager.
+
 ## 2026-07-29 — Rebuilt Chores as nested, printable lists
 
 Replaced the whole Chores section. The old one asked a manager to pick a chore

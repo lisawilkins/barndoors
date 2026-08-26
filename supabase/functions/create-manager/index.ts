@@ -1,5 +1,7 @@
-// Creates a new Manager account (real Supabase Auth login) from inside the
-// app. Callable only by an existing manager.
+// Creates a new Manager or Admin account (real Supabase Auth login) from
+// inside the app — the two roles have identical permissions, this just sets
+// which one lands in profiles.role. Callable only by an existing
+// manager/admin.
 //
 // Why this has to be an Edge Function rather than a plain client call:
 // `supabase.auth.signUp()` run from the browser swaps the *caller's own*
@@ -65,11 +67,11 @@ Deno.serve(async (req) => {
     .eq('id', callerData.user.id)
     .single()
 
-  if (callerProfileError || callerProfile?.role !== 'manager') {
-    return jsonResponse({ error: 'Only managers can create new manager accounts.' }, 403)
+  if (callerProfileError || !['manager', 'admin'].includes(callerProfile?.role ?? '')) {
+    return jsonResponse({ error: 'Only managers or admins can create new accounts.' }, 403)
   }
 
-  let body: { email?: string; password?: string; name?: string }
+  let body: { email?: string; password?: string; name?: string; role?: string }
   try {
     body = await req.json()
   } catch {
@@ -79,6 +81,7 @@ Deno.serve(async (req) => {
   const email = body.email?.trim()
   const password = body.password
   const name = body.name?.trim()
+  const role = body.role === 'admin' ? 'admin' : 'manager'
 
   if (!email || !password || !name) {
     return jsonResponse({ error: 'Name, email, and password are all required.' }, 400)
@@ -100,16 +103,16 @@ Deno.serve(async (req) => {
   }
 
   // handle_new_user() (see supabase/migrations) always inserts the new
-  // profiles row with role = 'hand' — promote it now that the account is a
-  // manager account.
+  // profiles row with role = 'hand' — promote it now to whichever role was
+  // requested.
   const { error: promoteError } = await adminClient
     .from('profiles')
-    .update({ role: 'manager' })
+    .update({ role })
     .eq('id', created.user.id)
 
   if (promoteError) {
     return jsonResponse(
-      { error: `Account created, but could not set the manager role: ${promoteError.message}` },
+      { error: `Account created, but could not set the ${role} role: ${promoteError.message}` },
       500,
     )
   }

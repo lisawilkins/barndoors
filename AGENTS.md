@@ -14,7 +14,7 @@ spec). This file covers behavior, conventions, and guardrails.
 BarnDoors is a barn/ranch management web app covering:
 1. **Herd & head records** — livestock data, feed plans, turnout groups, custom fields
 2. **Chores** — nested, ordered lists a manager writes and a hand works top to bottom
-3. **People** — managers (full edit access) and hands (read-only), profiles, shift scheduling
+3. **People** — managers/admins (full edit access) and hands (read-only), profiles, shift scheduling
 4. **Reports** — print-friendly, filtered views over the above; some reports also offer a
    plain CSV download (no PDF export in v1)
 
@@ -54,16 +54,19 @@ targets, minimal typing, and high legibility over density or cleverness.
     `https://barn-doors.netlify.app/**`).
 - **Auth:** Supabase Auth only. Do not use Netlify Identity or any other auth provider —
   this was flagged explicitly to avoid confusion between the two platforms.
-  - **Managers** each have an individual Supabase Auth account (email + password) and sign in
-    individually on `/login`. New manager accounts are created in-app by an existing manager
-    (`/hands/new-manager`, `ManagerForm.jsx`), which calls the `create-manager` Supabase Edge
-    Function (`supabase/functions/create-manager/`) — that function uses the service-role Admin
-    API (`auth.admin.createUser`) so the calling manager's own session isn't disturbed (a plain
-    client-side `supabase.auth.signUp()` would otherwise swap the caller's session to the new
-    user), then promotes the new profile's `role` to `manager` (the signup trigger always
-    defaults new accounts to `hand`). The very first manager still has to be promoted by hand
-    in the Supabase dashboard/SQL, since creating one requires an existing manager to be logged
-    in already.
+  - **Managers and admins** each have an individual Supabase Auth account (email + password)
+    and sign in individually on `/login` via the same "Manager" button — admin isn't a separate
+    login path, just a different `profiles.role` value with identical permissions (see "Roles &
+    permissions"). New manager/admin accounts are created in-app by an existing manager/admin
+    (`/hands/new-manager`, `ManagerForm.jsx`, a role dropdown on that form), which calls the
+    `create-manager` Supabase Edge Function (`supabase/functions/create-manager/`) — that
+    function uses the service-role Admin API (`auth.admin.createUser`) so the calling
+    manager/admin's own session isn't disturbed (a plain client-side `supabase.auth.signUp()`
+    would otherwise swap the caller's session to the new user), then promotes the new profile's
+    `role` to whichever of `manager`/`admin` was requested (the signup trigger always defaults
+    new accounts to `hand`). The very first manager/admin still has to be promoted by hand in
+    the Supabase dashboard/SQL, since creating one requires an existing manager/admin to be
+    logged in already.
   - **Hands do not have individual accounts.** Everyone signs in as a hand through one shared,
     dedicated Supabase Auth account gated by a single universal password (set on `/login` by
     selecting "Hand"). The shared account's email is a fixed, non-secret constant
@@ -119,16 +122,22 @@ targets, minimal typing, and high legibility over density or cleverness.
 
 ## Roles & permissions — the one rule that governs everything
 
-- **Managers:** full create/edit/delete (soft-delete default, hard-delete as a separate
-  deliberate action) across all data.
+- **Managers and admins:** full create/edit/delete (soft-delete default, hard-delete as a
+  separate deliberate action) across all data. The two roles are **permission-identical** —
+  `admin` exists purely to categorize technology admin accounts separately from barn managers
+  in the Hands list and profile display, not to grant or withhold anything. Lisa Wilkins
+  (`lisa@lisawilkins.com`) is `admin`, not `manager`, for this reason.
 - **Hands:** **read-only, full stop** — across herd/head, chores, turnout, feed plans,
   shifts, everything. Hands do not mark chores complete — there is no completion
   tracking in this app. Hands cannot create, edit, or delete records anywhere.
 - Enforce row-level restrictions via Supabase RLS, not client-side checks alone. Every
-  table's write policy should reduce to: managers only. Phrasing like
+  table's write policy should reduce to: managers/admins only. Phrasing like
   `auth.role() = 'manager'` in this doc is shorthand — Postgres `auth.role()` only
-  returns `authenticated`/`anon`/`service_role`; the migrations implement manager
-  checks via a `public.is_manager()` helper that reads `profiles.role`.
+  returns `authenticated`/`anon`/`service_role`; the migrations implement the manager/admin
+  check via a single `public.is_manager()` helper that reads `profiles.role` and returns true
+  for either role (see `supabase/migrations/20260825100000_add_admin_role.sql`) — every RLS
+  policy and both storage bucket policies already call this one function, so admin didn't
+  require touching any of them individually.
   There should be no per-table exceptions — if a feature seems to need one, stop and
   ask rather than assuming.
 - **Field-level (column) restrictions are different from row-level and need a different
@@ -279,14 +288,14 @@ Routine content, copy, and styling-only commits don't need a review.
 ### What to check (BarnDoors-specific)
 A generic web-app pass will miss the things most likely to bite this stack. Confirm each:
 - **RLS on every table.** Any new/changed table has RLS *enabled* and its write policy reduces
-  to managers only (via `is_manager()`, not client-side checks, not `auth.role()`). No table
-  ships with RLS off. See "Roles & permissions."
+  to managers/admins only (via `is_manager()`, not client-side checks, not `auth.role()`). No
+  table ships with RLS off. See "Roles & permissions."
 - **Column-level hiding stays server-side.** Fields hidden from hands (currently just
   `profiles.emergency_contact`) are nulled by a `SECURITY DEFINER` RPC like
   `profiles_hand_visible()` — never filtered in app code.
 - **Service-role code authorizes its caller.** Any Edge Function using the service-role/Admin
-  API verifies the caller is an authenticated manager *before* doing privileged work, and
-  returns only what that caller should see.
+  API verifies the caller is an authenticated manager or admin *before* doing privileged work,
+  and returns only what that caller should see.
 - **Token-keyed public endpoints leak nothing extra.** The `.ics` feed (and anything like it)
   is keyed to an unguessable per-profile `calendar_feed_token`, scoped to that one profile's
   data, and exposes no other records even though it's unauthenticated.
@@ -305,9 +314,9 @@ the existing RLS policies and Edge Functions periodically and before major miles
 1. List every table in the public schema and confirm **RLS is enabled** on each — none with it
    off. Cross-check the Supabase dashboard's **Security Advisor**, which flags tables with RLS
    disabled and `SECURITY DEFINER` views as errors.
-2. For each table, confirm the **write policy reduces to managers only** (via `is_manager()`,
-   never a client-side check or bare `auth.role() = 'manager'`) and reads require an
-   authenticated session.
+2. For each table, confirm the **write policy reduces to managers/admins only** (via
+   `is_manager()`, never a client-side check or bare `auth.role() = 'manager'`) and reads
+   require an authenticated session.
 3. Confirm there are **no per-table exceptions** — if one exists it should have been flagged
    and agreed, not slipped in.
 4. Re-check column hiding: `profiles_hand_visible()` is still a `SECURITY DEFINER` function (not
@@ -317,8 +326,8 @@ the existing RLS policies and Edge Functions periodically and before major miles
 **Edge Functions — everything under `supabase/functions/`:**
 1. Review every function using the **service-role / Admin key** (currently `create-manager` and
    the `.ics` feed) — these bypass RLS entirely, so they carry their own authorization.
-2. Confirm each **verifies the caller is an authenticated manager** before any privileged work
-   (creating users, promoting roles, etc.).
+2. Confirm each **verifies the caller is an authenticated manager or admin** before any
+   privileged work (creating users, promoting roles, etc.).
 3. Confirm the `.ics` feed is scoped to the **single profile its `calendar_feed_token` belongs
    to** and returns nothing else, even though the URL is unauthenticated.
 4. Confirm the **service-role key comes from the function's own environment/secrets**, and is
