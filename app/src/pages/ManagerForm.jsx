@@ -31,7 +31,21 @@ export default function ManagerForm() {
     setSaving(false)
 
     if (invokeError || data?.error) {
-      setError(data?.error ?? invokeError.message)
+      // supabase-js returns data: null on a non-2xx response, so data?.error
+      // is never set for a real failure — the actual { error: "..." } body
+      // the function sent back only lives on invokeError.context (the raw
+      // fetch Response). Without this, every failure just showed the SDK's
+      // generic "Edge Function returned a non-2xx status code".
+      let message = data?.error ?? invokeError.message
+      if (!data?.error && invokeError?.context?.json) {
+        try {
+          const body = await invokeError.context.json()
+          if (body?.error) message = body.error
+        } catch {
+          // response body wasn't JSON (or already consumed) — fall back to invokeError.message
+        }
+      }
+      setError(message)
       return
     }
 
