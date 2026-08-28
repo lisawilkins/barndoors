@@ -54,17 +54,17 @@ export default function Chores() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-5">
-        <h1 className="m-0 text-[26px] font-bold tracking-tight">Chores</h1>
+        <h1 className="m-0 font-display text-3xl font-light text-ink-900">Chores</h1>
 
-        {error && <p className="text-lg text-red-600">{error}</p>}
-        {loading && <p className="text-lg text-gray-500">Loading…</p>}
+        {error && <p className="text-[15px] text-red-600">{error}</p>}
+        {loading && <p className="text-[15px] text-ink-400">Loading…</p>}
 
         {!loading && lists.length === 0 && (
-          <p className="text-[15.5px] italic text-gray-400">
+          <p className="text-[15.5px] italic text-ink-300">
             {isManager ? 'No lists yet. Add one below.' : 'No chore lists yet.'}
           </p>
         )}
@@ -75,13 +75,13 @@ export default function Chores() {
               <li key={list.id}>
                 <Link
                   to={`/chores/${list.id}`}
-                  className="flex min-h-[60px] flex-col justify-center gap-1 rounded-[10px] border border-gray-200 px-4 py-3 active:bg-gray-50"
+                  className="flex min-h-[60px] flex-col justify-center gap-1 rounded-md border border-border-card bg-white px-4 py-3 active:bg-surface-canvas"
                 >
-                  <span className="text-[17px] font-semibold leading-snug">
+                  <span className="text-[17px] font-semibold leading-snug text-ink-900">
                     {list.name?.trim() || 'Untitled list'}
                   </span>
                   {list.description?.trim() && (
-                    <span className="line-clamp-2 text-[14.5px] leading-snug text-gray-500">
+                    <span className="line-clamp-2 text-[14.5px] leading-snug text-ink-400">
                       {list.description}
                     </span>
                   )}
@@ -96,7 +96,7 @@ export default function Chores() {
             type="button"
             onClick={handleNewList}
             disabled={creating}
-            className="flex h-12 items-center gap-2 self-start rounded-lg px-2.5 text-base font-semibold text-gray-500 active:bg-gray-100 active:text-gray-900 disabled:opacity-50"
+            className="flex h-12 items-center gap-2 self-start rounded-md px-2.5 text-base font-semibold text-accent-bright active:opacity-70 disabled:opacity-50"
           >
             ＋&nbsp; {creating ? 'Adding…' : 'Add list'}
           </button>

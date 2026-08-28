@@ -8,12 +8,12 @@ import { CSS } from '@dnd-kit/utilities'
 
 const PAD = { 1: 'pl-0', 2: 'pl-5', 3: 'pl-10' }
 
-const HANDLE_COLOR = { 1: 'text-gray-400', 2: 'text-gray-300', 3: 'text-gray-200' }
+const HANDLE_COLOR = { 1: 'text-ink-300', 2: 'text-ink-200', 3: 'text-ink-200' }
 
 const TEXT_STYLE = {
   1: 'text-[17px] font-semibold',
   2: 'text-[15.5px]',
-  3: 'text-[14.5px] text-gray-700 bg-gray-50 border-gray-100',
+  3: 'text-[14.5px] text-ink-600 bg-surface-canvas border-border-hairline',
 }
 
 const PLACEHOLDER = { 1: 'Item name', 2: 'Add a step…', 3: 'Add a detail…' }
@@ -33,7 +33,9 @@ function GripIcon() {
 
 function keyButton(enabled) {
   return `flex h-9 items-center whitespace-nowrap rounded-[7px] px-[11px] text-[13px] font-semibold ${
-    enabled ? 'bg-gray-100 text-gray-700 active:bg-gray-200' : 'bg-gray-50 text-gray-300'
+    enabled
+      ? 'bg-surface-canvas text-ink-600 active:bg-border-hairline-2'
+      : 'bg-surface-canvas text-ink-200'
   }`
 }
 
@@ -99,7 +101,7 @@ export default function ChoreEditRow({
           } ${
             isFocused
               ? 'border-2 border-[#E0A32E] px-[11px] py-2 shadow-[0_0_0_3px_rgba(224,163,46,0.16)]'
-              : 'border border-gray-200 px-3 py-[9px]'
+              : 'border border-border-input px-3 py-[9px]'
           }`}
         />
       </div>
@@ -118,7 +120,7 @@ export default function ChoreEditRow({
             onBlur={onNoteBlur}
             rows={1}
             placeholder="Note for whoever works this list"
-            className="w-full min-w-0 flex-1 resize-none overflow-hidden border-none px-1 py-1.5 text-[14.5px] italic leading-relaxed text-gray-500 outline-none"
+            className="w-full min-w-0 flex-1 resize-none overflow-hidden border-none px-1 py-1.5 text-[14.5px] italic leading-relaxed text-ink-400 outline-none"
           />
         </div>
       )}
@@ -164,11 +166,11 @@ export default function ChoreEditRow({
       )}
 
       {menuOpen && (
-        <div className="flex w-60 flex-col self-end overflow-hidden rounded-[10px] border border-gray-200 bg-white shadow-[0_12px_30px_rgba(17,24,39,0.18)]">
+        <div className="flex w-60 flex-col self-end overflow-hidden rounded-md border border-border-card bg-white shadow-card">
           <button
             type="button"
             onClick={onDuplicate}
-            className="border-b border-gray-100 px-4 py-[13px] text-left text-[15.5px] text-gray-900 active:bg-gray-50"
+            className="border-b border-border-hairline px-4 py-[13px] text-left text-[15.5px] text-ink-900 active:bg-surface-canvas"
           >
             Duplicate
           </button>
@@ -176,7 +178,7 @@ export default function ChoreEditRow({
             <button
               type="button"
               onClick={onToggleNote}
-              className="border-b border-gray-100 px-4 py-[13px] text-left text-[15.5px] text-gray-900 active:bg-gray-50"
+              className="border-b border-border-hairline px-4 py-[13px] text-left text-[15.5px] text-ink-900 active:bg-surface-canvas"
             >
               {hasNote ? 'Remove note' : 'Add a note'}
             </button>
