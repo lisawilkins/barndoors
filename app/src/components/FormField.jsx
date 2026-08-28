@@ -1,5 +1,6 @@
-const labelClass = 'text-lg font-medium text-gray-700'
-const controlClass = 'rounded-lg border border-gray-300 px-4 text-lg text-gray-900'
+const labelClass = 'text-xs font-semibold text-ink-400'
+const controlClass =
+  'rounded-md border border-border-input bg-surface-input px-4 text-[15px] text-ink-900'
 
 export function TextField({ label, className = '', ...props }) {
   return (

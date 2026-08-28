@@ -33,11 +33,8 @@ export default function TopNav() {
   }, [menuOpen])
 
   return (
-    <header className="relative flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3 sm:px-6">
-      <Link
-        to="/"
-        className="text-xl font-bold tracking-tight text-gray-900"
-      >
+    <header className="relative flex items-center justify-between border-b border-border-divider bg-surface-card px-4 py-3 sm:px-6">
+      <Link to="/" className="font-display text-xl font-light tracking-tight text-ink-900">
         BarnDoors
       </Link>
 
@@ -47,30 +44,17 @@ export default function TopNav() {
           aria-label="Open menu"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((open) => !open)}
-          className="flex h-12 w-12 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
+          className="flex h-12 w-12 items-center justify-center rounded-md text-ink-600 active:bg-surface-canvas"
         >
-          <svg
-            className="h-7 w-7"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"
-            />
-          </svg>
+          <span className="material-symbols-outlined text-[24px]">menu</span>
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 z-10 mt-2 w-56 rounded-xl border border-gray-200 bg-white py-2 shadow-lg">
+          <div className="absolute right-0 z-10 mt-2 w-56 rounded-md border border-border-card bg-surface-card py-2 shadow-card">
             {profile && (
-              <div className="border-b border-gray-100 px-5 py-3">
-                <p className="text-lg font-medium text-gray-900">{profile.name}</p>
-                <p className="text-sm capitalize text-gray-500">{profile.role}</p>
+              <div className="border-b border-border-divider px-5 py-3">
+                <p className="text-[15px] font-medium text-ink-900">{profile.name}</p>
+                <p className="text-sm capitalize text-ink-400">{profile.role}</p>
               </div>
             )}
             {MENU_LINKS.map(({ label, to }) => (
@@ -78,7 +62,7 @@ export default function TopNav() {
                 key={label}
                 to={to}
                 onClick={() => setMenuOpen(false)}
-                className="block px-5 py-3 text-lg text-gray-700 active:bg-gray-100"
+                className="block px-5 py-3 text-[15px] text-ink-600 active:bg-surface-canvas"
               >
                 {label}
               </Link>
@@ -86,7 +70,7 @@ export default function TopNav() {
             <button
               type="button"
               onClick={handleSignOut}
-              className="block w-full border-t border-gray-100 px-5 py-3 text-left text-lg text-gray-700 active:bg-gray-100"
+              className="block w-full border-t border-border-divider px-5 py-3 text-left text-[15px] text-ink-600 active:bg-surface-canvas"
             >
               Sign out
             </button>
