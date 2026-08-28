@@ -83,7 +83,7 @@ export default function Hands() {
               to="/hands/new-manager"
               className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
             >
-              Add manager
+              Add manager/admin
             </Link>
           </div>
         )}
@@ -102,9 +102,9 @@ export default function Hands() {
               className="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
             >
               <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {person.role === 'manager' && (
-                  <span className="w-fit rounded-full bg-gray-200 px-3 py-1 text-sm font-medium text-gray-700">
-                    Manager
+                {(person.role === 'manager' || person.role === 'admin') && (
+                  <span className="w-fit rounded-full bg-gray-200 px-3 py-1 text-sm font-medium capitalize text-gray-700">
+                    {person.role}
                   </span>
                 )}
                 <span className="text-xl font-semibold text-gray-900">{person.name}</span>

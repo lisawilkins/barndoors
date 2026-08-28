@@ -7,7 +7,7 @@ _Last updated: reflects all decisions through Reports section._
 ## Conventions used throughout
 
 - **Soft delete by default:** most records use a `status` or `active` field instead of being erased. Hard delete is available as a separate, deliberate action (e.g. for true duplicates/mistakes), not the default.
-- **Manager-only writes:** every table below is writable only by `role = manager`, enforced via row-level security (`auth.role() = 'manager'`) — no per-table exceptions.
+- **Manager-only writes:** every table below is writable only by `role in ('manager', 'admin')`, enforced via row-level security (`auth.role() = 'manager'`) — no per-table exceptions. `admin` is permission-identical to `manager`, just a separate category for technology admin vs. barn manager.
 - **Extensible lists:** several lists (feed items, turnout locations, chore types) support a manager-added "New" entry rather than being hardcoded.
 - **Field-level visibility (new):** where hands and managers see different fields on the *same* row (not different rows), use a restricted Postgres **function** exposing only allowed columns, rather than filtering in app code. See `profiles_hand_visible()` below.
 
@@ -18,8 +18,8 @@ _Last updated: reflects all decisions through Reports section._
 ### `profiles`
 | Field | Notes |
 |---|---|
-| id | manager rows: matches their `auth.users.id`. Hand rows: a plain generated id — no login account required, see note below |
-| role | `manager` \| `hand` |
+| id | manager/admin rows: matches their `auth.users.id`. Hand rows: a plain generated id — no login account required, see note below |
+| role | `manager` \| `hand` \| `admin` — `admin` has identical permissions to `manager`, it's just a separate category for technology admin vs. barn manager |
 | name | |
 | photo_url | |
 | phone | |
@@ -28,7 +28,7 @@ _Last updated: reflects all decisions through Reports section._
 | status | `active` \| `inactive` (soft delete) |
 | calendar_feed_token | long random string, powers the subscribable `.ics` feed URL; regeneratable if compromised |
 
-**Auth model:** managers each have an individual Supabase Auth account (email + password) and sign in individually. Hands do not — everyone signs in as a hand through one shared Supabase Auth account gated by a single universal password (see AGENTS.md "Auth"). Because of this, `profiles.id` is **not** foreign-keyed to `auth.users.id` — a manager's row happens to match their real auth id, but a hand's row is just a manager-managed person record (used for shift scheduling, chore assignment, and reports) with no auth account behind it at all.
+**Auth model:** managers and admins each have an individual Supabase Auth account (email + password) and sign in individually (same "Manager" button on `/login` — admin isn't a separate login path). Hands do not — everyone signs in as a hand through one shared Supabase Auth account gated by a single universal password (see AGENTS.md "Auth"). Because of this, `profiles.id` is **not** foreign-keyed to `auth.users.id` — a manager/admin row happens to match their real auth id, but a hand's row is just a manager-managed person record (used for shift scheduling, chore assignment, and reports) with no auth account behind it at all.
 
 **Visibility rule:** there is no "own profile" concept anymore, since hand logins are shared. `emergency_contact` is always hidden from the hand-facing view, for every row. `email` is visible to hands too (added so the Hands list can offer a tappable "email this person" link for everyone, not just managers). Managers see everything, for everyone.
 

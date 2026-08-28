@@ -102,7 +102,8 @@ export default function HandForm() {
           <p className="text-lg text-gray-500">
             Role:{' '}
             <span className="font-medium capitalize text-gray-900">{form.role}</span>
-            {form.role === 'manager' && ' (has their own login — this can\u2019t be changed here)'}
+            {(form.role === 'manager' || form.role === 'admin') &&
+              ' (has their own login — this can\u2019t be changed here)'}
           </p>
         )}
 

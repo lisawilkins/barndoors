@@ -70,7 +70,9 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     role: profile?.role ?? null,
-    isManager: profile?.role === 'manager',
+    // Admin is a separate category (technology admin vs. barn manager) but
+    // has identical app permissions to manager — see AGENTS.md.
+    isManager: profile?.role === 'manager' || profile?.role === 'admin',
     loading,
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signInAsHand: (password) =>
