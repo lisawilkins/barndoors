@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import { TextField, SelectField } from '../components/FormField'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { supabase } from '../lib/supabaseClient'
 import { sanitizeEmail, isValidEmail } from '../lib/email'
 
@@ -25,6 +26,8 @@ export default function HandForm() {
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [confirmingArchive, setConfirmingArchive] = useState(false)
+  const initialStatusRef = useRef('active')
 
   useEffect(() => {
     if (!isEdit) return
@@ -41,6 +44,7 @@ export default function HandForm() {
           setError(fetchError.message)
         } else {
           setForm({ ...data, phone: data.phone ?? '', email: data.email ?? '' })
+          initialStatusRef.current = data.status
         }
         setLoading(false)
       })
@@ -54,8 +58,21 @@ export default function HandForm() {
     setForm((current) => ({ ...current, [field]: value }))
   }
 
-  async function handleSubmit(event) {
+  function isArchiving() {
+    return isEdit && initialStatusRef.current !== 'inactive' && form.status === 'inactive'
+  }
+
+  function handleFormSubmit(event) {
     event.preventDefault()
+    if (isArchiving()) {
+      setConfirmingArchive(true)
+      return
+    }
+    performSave()
+  }
+
+  async function performSave() {
+    setConfirmingArchive(false)
     setSaving(true)
     setError('')
 
@@ -84,30 +101,34 @@ export default function HandForm() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-white">
+      <div className="flex min-h-screen flex-col bg-surface-canvas">
         <TopNav />
-        <p className="px-4 py-6 text-lg text-gray-500">Loading…</p>
+        <p className="px-4 py-6 text-[15px] text-ink-400">Loading…</p>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <h1 className="text-3xl font-semibold text-gray-900">{isEdit ? 'Edit hand' : 'Add hand'}</h1>
+        <h1 className="font-display text-3xl font-light text-ink-900">
+          {isEdit ? 'Edit hand' : 'Add hand'}
+        </h1>
 
         {isEdit && (
-          <p className="text-lg text-gray-500">
-            Role:{' '}
-            <span className="font-medium capitalize text-gray-900">{form.role}</span>
+          <p className="text-[15px] text-ink-400">
+            Role: <span className="font-medium capitalize text-ink-900">{form.role}</span>
             {(form.role === 'manager' || form.role === 'admin') &&
               ' (has their own login — this can\u2019t be changed here)'}
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form
+          onSubmit={handleFormSubmit}
+          className="flex flex-col gap-4 rounded-md border border-border-card bg-white p-4"
+        >
           <TextField
             label="Name"
             required
@@ -135,26 +156,36 @@ export default function HandForm() {
             <option value="inactive">Inactive</option>
           </SelectField>
 
-          {error && <p className="text-lg text-red-600">{error}</p>}
+          {error && <p className="text-[15px] text-red-600">{error}</p>}
 
           <div className="mt-2 flex gap-3">
             <button
               type="button"
               onClick={() => navigate('/hands')}
-              className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
+              className="flex h-12 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[16px] font-semibold text-ink-600 active:bg-surface-canvas"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex h-14 flex-1 items-center justify-center rounded-lg bg-gray-900 text-lg font-semibold text-white active:bg-gray-700 disabled:opacity-50"
+              className="flex h-12 flex-1 items-center justify-center rounded-md bg-accent-bright text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>
         </form>
       </main>
+
+      <ConfirmDialog
+        open={confirmingArchive}
+        title={`Set ${form.name || 'this person'} to inactive?`}
+        message="They'll be hidden from the Hands list, but their record stays in the database — you can switch them back to Active anytime."
+        confirmLabel="Set inactive"
+        destructive={false}
+        onConfirm={performSave}
+        onCancel={() => setConfirmingArchive(false)}
+      />
     </div>
   )
 }

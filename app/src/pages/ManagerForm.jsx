@@ -97,14 +97,14 @@ export default function ManagerForm() {
             <button
               type="button"
               onClick={() => navigate('/hands')}
-              className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
+              className="flex h-12 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[16px] font-semibold text-ink-600 active:bg-surface-canvas"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex h-14 flex-1 items-center justify-center rounded-lg bg-gray-900 text-lg font-semibold text-white active:bg-gray-700 disabled:opacity-50"
+              className="flex h-12 flex-1 items-center justify-center rounded-md bg-accent-bright text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
             >
               {saving ? 'Creating…' : role === 'admin' ? 'Create admin' : 'Create manager'}
             </button>

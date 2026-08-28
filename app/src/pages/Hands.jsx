@@ -6,25 +6,6 @@ import { supabase } from '../lib/supabaseClient'
 import { formatPhone, telHref } from '../lib/formatPhone'
 import { isValidEmail } from '../lib/email'
 
-function PencilIcon() {
-  return (
-    <svg
-      className="h-6 w-6"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-      />
-    </svg>
-  )
-}
-
 export default function Hands() {
   const { isManager, loading: authLoading } = useAuth()
   const [people, setPeople] = useState([])
@@ -65,82 +46,81 @@ export default function Hands() {
   }, [isManager, authLoading])
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <h1 className="text-3xl font-semibold text-gray-900">Hands</h1>
+        <h1 className="font-display text-3xl font-light text-ink-900">Hands</h1>
 
         {isManager && (
           <div className="flex gap-3">
             <Link
               to="/hands/new"
-              className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
+              className="flex h-12 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
             >
               Add hand
             </Link>
             <Link
               to="/hands/new-manager"
-              className="flex h-14 flex-1 items-center justify-center rounded-lg border border-gray-300 text-lg font-medium text-gray-700 active:bg-gray-100"
+              className="flex h-12 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
             >
               Add manager/admin
             </Link>
           </div>
         )}
 
-        {(loading || authLoading) && <p className="text-lg text-gray-500">Loading…</p>}
-        {error && <p className="text-lg text-red-600">{error}</p>}
+        {(loading || authLoading) && <p className="text-[15px] text-ink-400">Loading…</p>}
+        {error && <p className="text-[15px] text-red-600">{error}</p>}
 
         {!loading && !authLoading && !error && people.length === 0 && (
-          <p className="text-lg text-gray-500">No people yet.</p>
+          <p className="text-[15px] text-ink-400">No people yet.</p>
         )}
 
-        <ul className="flex flex-col gap-3">
-          {people.map((person) => (
-            <li
-              key={person.id}
-              className="flex items-center justify-between gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-            >
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {(person.role === 'manager' || person.role === 'admin') && (
-                  <span className="w-fit rounded-full bg-gray-200 px-3 py-1 text-sm font-medium capitalize text-gray-700">
-                    {person.role}
-                  </span>
-                )}
-                <span className="text-xl font-semibold text-gray-900">{person.name}</span>
-                {person.phone && (
-                  <a
-                    href={telHref(person.phone)}
-                    className="text-lg text-gray-600 underline active:text-gray-900"
-                  >
-                    {formatPhone(person.phone)}
-                  </a>
-                )}
-                {person.email && isValidEmail(person.email) && (
-                  <a
-                    href={`mailto:${person.email}`}
-                    className="truncate text-lg text-gray-600 underline active:text-gray-900"
-                  >
-                    {person.email}
-                  </a>
-                )}
-                {person.email && !isValidEmail(person.email) && (
-                  <span className="truncate text-lg text-gray-600">{person.email}</span>
-                )}
-              </div>
+        {people.length > 0 && (
+          <ul className="flex flex-col overflow-hidden rounded-md border border-border-card bg-white">
+            {people.map((person) => (
+              <li
+                key={person.id}
+                className="flex items-center justify-between gap-2 border-b border-border-hairline px-4 py-3 last:border-0"
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  {(person.role === 'manager' || person.role === 'admin') && (
+                    <span className="w-fit rounded-full bg-chip-bg px-2.5 py-0.5 text-xs font-semibold capitalize text-chip-fg">
+                      {person.role}
+                    </span>
+                  )}
+                  <span className="text-xl font-semibold text-ink-900">{person.name}</span>
+                  {person.phone && (
+                    <a href={telHref(person.phone)} className="text-[15px] text-accent-bright active:opacity-70">
+                      {formatPhone(person.phone)}
+                    </a>
+                  )}
+                  {person.email && isValidEmail(person.email) && (
+                    <a
+                      href={`mailto:${person.email}`}
+                      className="truncate text-[15px] text-accent-bright active:opacity-70"
+                    >
+                      {person.email}
+                    </a>
+                  )}
+                  {person.email && !isValidEmail(person.email) && (
+                    <span className="truncate text-[15px] text-ink-600">{person.email}</span>
+                  )}
+                </div>
 
-              {isManager && (
-                <Link
-                  to={`/hands/${person.id}`}
-                  aria-label={`Edit ${person.name}`}
-                  className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
-                >
-                  <PencilIcon />
-                </Link>
-              )}
-            </li>
-          ))}
-        </ul>
+                {isManager && (
+                  <Link
+                    to={`/hands/${person.id}`}
+                    aria-label={`Edit ${person.name}`}
+                    className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md text-ink-400 active:bg-surface-canvas"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">edit</span>
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
     </div>
   )
