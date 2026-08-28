@@ -25,32 +25,14 @@ const EXPAND_MS = 200
 
 function Chevron({ open }) {
   return (
-    <svg
-      className={`h-6 w-6 flex-shrink-0 text-gray-500 transition-transform duration-200 ease-out ${
-        open ? 'rotate-180' : ''
-      }`}
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-    </svg>
+    <span className="material-symbols-outlined flex-shrink-0 text-[22px] text-ink-300">
+      {open ? 'expand_less' : 'expand_more'}
+    </span>
   )
 }
 
 function GripIcon() {
-  return (
-    <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <circle cx="9" cy="6" r="1.5" />
-      <circle cx="9" cy="12" r="1.5" />
-      <circle cx="9" cy="18" r="1.5" />
-      <circle cx="15" cy="6" r="1.5" />
-      <circle cx="15" cy="12" r="1.5" />
-      <circle cx="15" cy="18" r="1.5" />
-    </svg>
-  )
+  return <span className="material-symbols-outlined text-[20px] text-ink-200">drag_indicator</span>
 }
 
 function HerdListItem({
@@ -62,7 +44,6 @@ function HerdListItem({
   isManager,
   onToggleExpand,
   onGridTransitionEnd,
-  onArchived,
   registerRef,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -84,9 +65,11 @@ function HerdListItem({
       className={`scroll-mt-4 ${isDragging ? 'relative z-10' : ''}`}
     >
       <div
-        className={`flex items-stretch overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition-shadow ${
-          isExpanded ? 'shadow-sm' : ''
-        } ${isDragging ? '-translate-y-1 shadow-lg ring-1 ring-gray-300' : ''}`}
+        className={`flex items-stretch overflow-hidden transition-shadow ${
+          isExpanded
+            ? 'rounded-md border border-border-card bg-white shadow-card'
+            : 'border-b border-border-divider'
+        } ${isDragging ? '-translate-y-1 rounded-md shadow-card ring-1 ring-border-card' : ''}`}
       >
         {isManager && !isExpanded && (
           <button
@@ -95,7 +78,7 @@ function HerdListItem({
             {...listeners}
             aria-label="Hold and drag to reorder"
             style={{ touchAction: 'pan-y' }}
-            className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-gray-400 active:cursor-grabbing active:bg-gray-200"
+            className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-ink-200 active:cursor-grabbing active:bg-surface-canvas"
           >
             <GripIcon />
           </button>
@@ -106,19 +89,19 @@ function HerdListItem({
             type="button"
             aria-expanded={isExpanded}
             onClick={() => onToggleExpand(animal.id)}
-            className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-100"
+            className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-surface-canvas"
           >
             {photoUrl ? (
               <img
                 src={photoUrl}
                 alt={animal.name || 'Animal'}
-                className={`flex-shrink-0 rounded-lg object-cover ${
+                className={`flex-shrink-0 rounded-md object-cover ${
                   isExpanded ? 'h-[140px] w-[140px]' : 'h-[100px] w-[100px]'
                 }`}
               />
             ) : (
               <div
-                className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-gray-200 text-2xl ${
+                className={`flex flex-shrink-0 items-center justify-center rounded-md bg-placeholder-tan-2 text-2xl ${
                   isExpanded ? 'h-[140px] w-[140px]' : 'h-[100px] w-[100px]'
                 }`}
               >
@@ -126,10 +109,14 @@ function HerdListItem({
               </div>
             )}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <span className="truncate text-xl font-semibold text-gray-900">
+              <span
+                className={`truncate text-ink-900 ${
+                  isExpanded ? 'font-display text-2xl font-semibold' : 'text-xl font-semibold'
+                }`}
+              >
                 {animal.name || 'Unnamed'}
               </span>
-              <span className="text-lg text-gray-500">
+              <span className="text-[15px] text-ink-400">
                 {[age, animal.sex, animal.breed].filter(Boolean).join(' · ') ||
                   'No details yet'}
               </span>
@@ -145,13 +132,7 @@ function HerdListItem({
             onTransitionEnd={(event) => onGridTransitionEnd(animal.id, event)}
           >
             <div className="min-h-0 overflow-hidden">
-              {showContent && (
-                <HerdCardBody
-                  animalId={animal.id}
-                  isManager={isManager}
-                  onArchived={onArchived}
-                />
-              )}
+              {showContent && <HerdCardBody animalId={animal.id} isManager={isManager} />}
             </div>
           </div>
         </div>
@@ -286,16 +267,6 @@ export default function Herd() {
     scrollTargetId.current = animalId
   }
 
-  function handleArchived(animalId) {
-    setHead((current) => current.filter((animal) => animal.id !== animalId))
-    setExpandedId(null)
-    setContentByCard((current) => {
-      const next = { ...current }
-      delete next[animalId]
-      return next
-    })
-  }
-
   async function persistOrder(reordered, previous) {
     const results = await Promise.all(
       reordered.map((animal, index) =>
@@ -329,27 +300,27 @@ export default function Herd() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-semibold text-gray-900">Herd</h1>
+          <h1 className="font-display text-3xl font-light text-ink-900">Herd</h1>
           {isManager && (
             <Link
               to="/herd/new"
-              className="flex h-12 items-center justify-center rounded-lg bg-gray-900 px-5 text-lg font-semibold text-white active:bg-gray-700"
+              className="flex h-11 items-center justify-center rounded-md bg-accent-bright px-4 text-[15px] font-semibold text-white active:opacity-90"
             >
               Add animal
             </Link>
           )}
         </div>
 
-        {loading && <p className="text-lg text-gray-500">Loading…</p>}
-        {error && <p className="text-lg text-red-600">{error}</p>}
+        {loading && <p className="text-[15px] text-ink-400">Loading…</p>}
+        {error && <p className="text-[15px] text-red-600">{error}</p>}
 
         {!loading && !error && head.length === 0 && (
-          <p className="text-lg text-gray-500">No animals yet.</p>
+          <p className="text-[15px] text-ink-400">No animals yet.</p>
         )}
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -375,7 +346,6 @@ export default function Herd() {
                     isManager={isManager}
                     onToggleExpand={toggleExpand}
                     onGridTransitionEnd={handleGridTransitionEnd}
-                    onArchived={handleArchived}
                     registerRef={registerCardRef}
                   />
                 )

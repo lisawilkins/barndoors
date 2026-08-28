@@ -209,7 +209,7 @@ export default function ChoreListEdit({
               ? 'border-2 border-red-600 px-[11px] py-2'
               : focusId === 'title'
                 ? 'border-2 border-[#E0A32E] px-[11px] py-2 shadow-[0_0_0_3px_rgba(224,163,46,0.16)]'
-                : 'border border-gray-200 px-3 py-[9px]'
+                : 'border border-border-input px-3 py-[9px]'
           }`}
         />
         {titleError && (
@@ -235,10 +235,10 @@ export default function ChoreListEdit({
         rows={2}
         placeholder="Add a description (optional)"
         aria-label="List description"
-        className={`w-full resize-none overflow-hidden rounded-lg text-[15px] leading-snug text-gray-600 outline-none ${
+        className={`w-full resize-none overflow-hidden rounded-lg text-[15px] leading-snug text-ink-600 outline-none ${
           focusId === 'desc'
             ? 'border-2 border-[#E0A32E] px-[11px] py-2.5 shadow-[0_0_0_3px_rgba(224,163,46,0.16)]'
-            : 'border border-gray-200 px-3 py-2.5'
+            : 'border border-border-input px-3 py-2.5'
         }`}
       />
 
@@ -288,7 +288,7 @@ export default function ChoreListEdit({
       <button
         type="button"
         onClick={handleAddItem}
-        className="flex h-12 items-center gap-2 rounded-lg px-2.5 text-left text-base font-semibold text-gray-500 active:bg-gray-100 active:text-gray-900"
+        className="flex h-12 items-center gap-2 rounded-md px-2.5 text-left text-base font-semibold text-accent-bright active:opacity-70"
       >
         ＋&nbsp; Add item
       </button>

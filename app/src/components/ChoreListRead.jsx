@@ -26,7 +26,7 @@ function Checkbox({ done, onToggle, label }) {
       aria-pressed={done}
       aria-label={label}
       className={`mt-px flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[5px] text-sm text-white ${
-        done ? 'border-none bg-gray-900' : 'border-2 border-gray-400 bg-transparent'
+        done ? 'border-none bg-accent-bright' : 'border-2 border-ink-200 bg-transparent'
       }`}
     >
       {done ? '✓' : ''}

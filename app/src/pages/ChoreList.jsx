@@ -4,6 +4,7 @@ import TopNav from '../components/TopNav'
 import ChoreListRead from '../components/ChoreListRead'
 import ChoreListEdit from '../components/ChoreListEdit'
 import ChoreListPrint from '../components/ChoreListPrint'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { fetchList, fetchListItems, saveListDetails, saveListItems } from '../lib/choreLists'
@@ -58,6 +59,7 @@ export default function ChoreList() {
   const [saveStatus, setSaveStatus] = useState('saved')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const saveTimer = useRef(null)
   const dirty = useRef(false)
@@ -198,8 +200,8 @@ export default function ChoreList() {
     setToast(null)
   }
 
-  async function handleDeleteList() {
-    if (!window.confirm(`Delete "${title || 'this list'}" and everything on it?`)) return
+  async function performDeleteList() {
+    setConfirmingDelete(false)
     const { error: deleteError } = await supabase.from('chore_lists').delete().eq('id', listId)
     if (deleteError) {
       setError(deleteError.message)
@@ -231,7 +233,7 @@ export default function ChoreList() {
         <TopNav />
         <main className="flex flex-col gap-3 p-4">
           <p className="text-lg text-red-600">{error || 'That list no longer exists.'}</p>
-          <Link to="/chores" className="text-lg underline">
+          <Link to="/chores" className="text-lg font-semibold text-accent-bright active:opacity-70">
             Back to chores
           </Link>
         </main>
@@ -259,7 +261,7 @@ export default function ChoreList() {
           <button
             type="button"
             onClick={handleDone}
-            className="h-9 rounded-lg bg-gray-900 px-[18px] text-[15px] font-semibold text-white active:bg-gray-700"
+            className="h-9 rounded-md bg-accent-bright px-[18px] text-[15px] font-semibold text-white active:opacity-90"
           >
             Done
           </button>
@@ -274,7 +276,7 @@ export default function ChoreList() {
           onTitleChange={handleTitleChange}
           onDescriptionChange={handleDescriptionChange}
           onNodesChange={handleNodesChange}
-          onDeleteList={handleDeleteList}
+          onDeleteList={() => setConfirmingDelete(true)}
           onToast={handleToast}
         />
       ) : isPrint ? (
@@ -287,14 +289,14 @@ export default function ChoreList() {
               <button
                 type="button"
                 onClick={() => setMode('read')}
-                className="h-10 rounded-[9px] border border-gray-200 px-3.5 text-[14.5px] text-gray-700 active:bg-gray-100"
+                className="h-10 rounded-md border border-border-input px-3.5 text-[14.5px] text-ink-600 active:bg-surface-canvas"
               >
                 Back
               </button>
               <button
                 type="button"
                 onClick={() => window.print()}
-                className="h-10 rounded-[9px] bg-gray-900 px-4 text-[14.5px] font-semibold text-white active:bg-gray-700"
+                className="h-10 rounded-md bg-accent-bright px-4 text-[14.5px] font-semibold text-white active:opacity-90"
               >
                 Print
               </button>
@@ -304,7 +306,7 @@ export default function ChoreList() {
           <div
             role="radiogroup"
             aria-label="Page orientation"
-            className="flex gap-1 self-start rounded-[9px] bg-gray-100 p-1 print:hidden"
+            className="flex gap-1 self-start rounded-md bg-surface-canvas p-1 print:hidden"
           >
             {['portrait', 'landscape'].map((value) => (
               <button
@@ -313,10 +315,10 @@ export default function ChoreList() {
                 role="radio"
                 aria-checked={orientation === value}
                 onClick={() => setOrientation(value)}
-                className={`h-10 rounded-[7px] px-4 text-[14.5px] font-semibold capitalize ${
+                className={`h-10 rounded-sm px-4 text-[14.5px] font-semibold capitalize ${
                   orientation === value
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 active:bg-gray-200'
+                    ? 'bg-white text-ink-900 shadow-sm'
+                    : 'text-ink-400 active:bg-white/60'
                 }`}
               >
                 {value}
@@ -356,7 +358,7 @@ export default function ChoreList() {
                 type="button"
                 onClick={() => setMode('print')}
                 aria-label="Print this list"
-                className="flex h-11 w-11 items-center justify-center rounded-[9px] border border-gray-200 text-[17px] text-gray-700 active:bg-gray-100"
+                className="flex h-11 w-11 items-center justify-center rounded-md border border-border-input text-[17px] text-ink-600 active:bg-surface-canvas"
               >
                 ⎙
               </button>
@@ -364,7 +366,7 @@ export default function ChoreList() {
                 <button
                   type="button"
                   onClick={() => setMode('edit')}
-                  className="h-11 rounded-[9px] bg-gray-900 px-[18px] text-base font-semibold text-white active:bg-gray-700"
+                  className="h-11 rounded-md bg-accent-bright px-[18px] text-base font-semibold text-white active:opacity-90"
                 >
                   Edit
                 </button>
@@ -399,6 +401,16 @@ export default function ChoreList() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title={`Delete "${displayTitle}"?`}
+        message="Are you sure? This can't be undone — once deleted, you can't get this list back."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={performDeleteList}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   )
 }

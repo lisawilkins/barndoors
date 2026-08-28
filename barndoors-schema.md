@@ -66,6 +66,7 @@ _Last updated: reflects all decisions through Reports section._
 | acquired_date | |
 | feed_notes | free text, animal-specific |
 | turnout_notes | free text, animal-specific |
+| notes | free text, general animal-specific notes distinct from `feed_notes`/`turnout_notes` (e.g. temperament, farrier schedule) |
 | sort_order | integer; manager-controlled display order for the Herd list (drag-and-drop). Defaults to "append at the end" for new animals via `head_sort_order_seq`; backfilled alphabetically for existing rows. The Herd list orders by this instead of `name`. |
 
 **Parked for later:** vet/dental/farrier notes, restricted from hands — likely a separate table (e.g. `head_medical_notes`) rather than columns on an existing table, so the hand/manager visibility split stays table-level (simple RLS) instead of column-level (requires a view).

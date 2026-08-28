@@ -135,25 +135,29 @@ export default function FeedScheduleReport() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gray-100 print:bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
       <div className="print:hidden">
         <TopNav />
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
         <div className="flex w-full max-w-5xl items-center justify-between print:hidden">
-          <div>
-            <h1 className="text-3xl font-semibold text-gray-900">Feed schedule</h1>
-            <Link to="/reports" className="text-lg text-gray-500 underline">
+          <div className="flex flex-col gap-1">
+            <Link
+              to="/reports"
+              className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-bright active:opacity-70"
+            >
+              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
               Back to reports
             </Link>
+            <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
           </div>
           <div className="flex gap-3">
             <button
               type="button"
               onClick={handleDownloadCsv}
               disabled={loading || Boolean(error)}
-              className="flex h-12 items-center justify-center rounded-lg border border-gray-300 px-5 text-lg font-semibold text-gray-900 active:bg-gray-100 disabled:opacity-50"
+              className="flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-5 text-[16px] font-semibold text-ink-600 active:bg-surface-canvas disabled:opacity-50"
             >
               Download CSV
             </button>
@@ -161,15 +165,15 @@ export default function FeedScheduleReport() {
               type="button"
               onClick={() => window.print()}
               disabled={loading || Boolean(error)}
-              className="flex h-12 items-center justify-center rounded-lg bg-gray-900 px-5 text-lg font-semibold text-white active:bg-gray-700 disabled:opacity-50"
+              className="flex h-12 items-center justify-center rounded-md bg-accent-bright px-5 text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
             >
               Print
             </button>
           </div>
         </div>
 
-        {loading && <p className="text-lg text-gray-500 print:hidden">Loading…</p>}
-        {error && <p className="text-lg text-red-600 print:hidden">{error}</p>}
+        {loading && <p className="text-[15px] text-ink-400 print:hidden">Loading…</p>}
+        {error && <p className="text-[15px] text-red-600 print:hidden">{error}</p>}
 
         {!loading && !error && (
           <div className="feed-report-page flex w-full max-w-5xl flex-col bg-white p-6 shadow-md print:max-w-none print:p-0 print:shadow-none">

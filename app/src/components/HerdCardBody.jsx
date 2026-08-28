@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { SelectField } from './FormField'
 import { supabase } from '../lib/supabaseClient'
 import { formatDays } from '../lib/turnoutSchedule'
 
@@ -16,15 +15,6 @@ const UNIT_SHORT = {
   scoop: 'scp',
   handful: 'handful',
   lbs: 'lbs',
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="grid grid-cols-2 items-start gap-4">
-      <span className="text-lg font-medium text-gray-700">{label}</span>
-      <span className="text-left text-lg text-gray-900 break-words">{value || '—'}</span>
-    </div>
-  )
 }
 
 function noteLines(text) {
@@ -60,43 +50,27 @@ function formatFeedSecondary(row) {
 
 function SectionHeader({ title, editTo, showEdit }) {
   return (
-    <div className="flex items-center justify-between">
-      <h2 className="text-lg font-medium text-gray-700">{title}</h2>
+    <div className="flex items-center justify-between border-b-[1.5px] border-ink-900 pb-1.5">
+      <span className="text-xs font-bold uppercase tracking-wider text-ink-900">{title}</span>
       {showEdit && editTo && (
         <Link
           to={editTo}
           aria-label={`Edit ${title.toLowerCase()}`}
-          className="flex h-12 w-12 items-center justify-center rounded-lg text-gray-700 active:bg-gray-100"
+          className="text-sm font-semibold text-accent-bright active:opacity-70"
         >
-          <svg
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10"
-            />
-          </svg>
+          Edit
         </Link>
       )}
     </div>
   )
 }
 
-export default function HerdCardBody({ animalId, isManager, onArchived }) {
+export default function HerdCardBody({ animalId, isManager }) {
   const [animal, setAnimal] = useState(null)
   const [feedPlan, setFeedPlan] = useState([])
   const [turnoutSchedule, setTurnoutSchedule] = useState([])
-  const [status, setStatus] = useState('active')
   const [loading, setLoading] = useState(true)
-  const [savingStatus, setSavingStatus] = useState(false)
   const [error, setError] = useState('')
-  const [statusError, setStatusError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -125,7 +99,6 @@ export default function HerdCardBody({ animalId, isManager, onArchived }) {
       }
 
       setAnimal(headResult.data)
-      setStatus(headResult.data.status)
 
       if (feedResult.error) {
         setError(feedResult.error.message)
@@ -171,155 +144,105 @@ export default function HerdCardBody({ animalId, isManager, onArchived }) {
     }
   }, [animalId])
 
-  async function handleStatusSave() {
-    setSavingStatus(true)
-    setStatusError('')
-
-    const today = new Date().toISOString().slice(0, 10)
-    const payload = {
-      status,
-      status_date: status === 'active' ? null : today,
-    }
-
-    const { error: saveError } = await supabase.from('head').update(payload).eq('id', animalId)
-    setSavingStatus(false)
-
-    if (saveError) {
-      setStatusError(saveError.message)
-      return
-    }
-
-    if (status !== 'active') {
-      onArchived?.(animalId)
-      return
-    }
-
-    setAnimal((current) => (current ? { ...current, ...payload } : current))
-  }
-
   if (loading) {
-    return <p className="px-4 pb-4 text-lg text-gray-500">Loading…</p>
+    return <p className="px-4 pb-4 text-[15px] text-ink-400">Loading…</p>
   }
 
   if (error || !animal) {
-    return <p className="px-4 pb-4 text-lg text-red-600">{error || 'Could not load animal.'}</p>
+    return <p className="px-4 pb-4 text-[15px] text-red-600">{error || 'Could not load animal.'}</p>
   }
 
   const feedNotes = noteLines(animal.feed_notes)
   const turnoutNotes = noteLines(animal.turnout_notes)
+  const notes = noteLines(animal.notes)
   const editPath = `/herd/${animalId}/edit`
 
   return (
-    <div className="flex flex-col gap-5 border-t border-gray-200 px-4 pb-4 pt-3">
-      <section className="flex flex-col gap-3">
+    <div className="flex flex-col gap-5 px-4 pb-4 pt-2">
+      <section className="flex flex-col gap-1">
         <SectionHeader title="Feed" editTo={editPath} showEdit={isManager} />
 
-        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-          {feedPlan.length === 0 ? (
-            <p className="text-lg text-gray-500">No feed plan yet.</p>
-          ) : (
-            <ul className="flex flex-col gap-6">
-              {feedPlan.map((row) => (
-                <li key={row.id} className="grid grid-cols-2 items-start gap-4">
-                  <span className="text-xl font-semibold text-gray-900 break-words">
-                    {row.feed_items?.name ?? '—'}
-                  </span>
-                  <span className="text-lg text-gray-500 text-left break-words">
-                    {[formatFeedPrimary(row), formatFeedSecondary(row)]
-                      .filter((part) => part !== '—')
-                      .join(' · ') || '—'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {feedPlan.length === 0 ? (
+          <p className="py-3 text-[15px] text-ink-400">No feed plan yet.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {feedPlan.map((row) => (
+              <li
+                key={row.id}
+                className="flex items-baseline justify-between gap-3 border-b border-border-hairline py-[7px]"
+              >
+                <span className="font-semibold text-ink-900 break-words">
+                  {row.feed_items?.name ?? '—'}
+                </span>
+                <span className="text-right text-[15px] font-bold capitalize text-ink-900 break-words">
+                  {[formatFeedPrimary(row), formatFeedSecondary(row)]
+                    .filter((part) => part !== '—')
+                    .join(' · ') || '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-medium text-gray-700">Feed notes</h3>
-          <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-            {feedNotes.length === 0 ? (
-              <p className="text-lg text-gray-500">No feed notes.</p>
-            ) : (
-              <ul className="list-disc space-y-2 pl-5 text-lg text-gray-900">
-                {feedNotes.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        {feedNotes.length > 0 && (
+          <p className="mt-0.5 border-l-2 border-placeholder-tan-1 pl-2.5 text-[14px] italic leading-relaxed text-ink-600">
+            {feedNotes.join(' ')}
+          </p>
+        )}
       </section>
 
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-1">
         <SectionHeader title="Turnout" editTo={editPath} showEdit={isManager} />
 
-        <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-          {turnoutSchedule.length === 0 ? (
-            <p className="text-lg text-gray-500">No turnout schedule yet.</p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {turnoutSchedule.map((entry) => (
-                <li key={entry.id} className="flex flex-col gap-1">
-                  <span className="text-xl font-semibold text-gray-900">{entry.location}</span>
-                  <span className="text-lg text-gray-500">
-                    {[entry.days, entry.buddies !== '—' ? `Buddies: ${entry.buddies}` : null]
-                      .filter(Boolean)
-                      .join(' · ') || '—'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {turnoutSchedule.length === 0 ? (
+          <p className="py-3 text-[15px] text-ink-400">No turnout schedule yet.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {turnoutSchedule.map((entry) => (
+              <li
+                key={entry.id}
+                className="flex items-baseline justify-between gap-4 border-b border-border-hairline py-[7px]"
+              >
+                <span className="font-semibold text-ink-900">{entry.location}</span>
+                <span className="text-right text-[15px] text-ink-900">
+                  {[entry.days, entry.buddies !== '—' ? `Buddies: ${entry.buddies}` : null]
+                    .filter(Boolean)
+                    .join(' · ') || '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        <div className="flex flex-col gap-1">
-          <h3 className="text-lg font-medium text-gray-700">Turnout notes</h3>
-          <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-            {turnoutNotes.length === 0 ? (
-              <p className="text-lg text-gray-500">No turnout notes.</p>
-            ) : (
-              <ul className="list-disc space-y-2 pl-5 text-lg text-gray-900">
-                {turnoutNotes.map((line) => (
-                  <li key={line}>{line}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
+        {turnoutNotes.length > 0 && (
+          <p className="mt-0.5 border-l-2 border-placeholder-tan-1 pl-2.5 text-[14px] italic leading-relaxed text-ink-600">
+            {turnoutNotes.join(' ')}
+          </p>
+        )}
       </section>
 
-      {isManager ? (
-        <section className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4">
-          <SelectField
-            label="Status"
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
+      <section className="flex flex-col gap-1">
+        <SectionHeader title="Notes" editTo={editPath} showEdit={isManager} />
+        <p className="py-1 text-[15px] leading-relaxed text-ink-600">
+          {notes.length > 0 ? notes.join(' ') : 'No notes yet.'}
+        </p>
+      </section>
+
+      <div className="flex items-center justify-between border-t border-border-divider pt-3 text-[15px]">
+        <span className="text-ink-400">
+          Status ·{' '}
+          <span className="text-ink-900">{STATUS_LABEL[animal.status] ?? animal.status}</span>
+        </span>
+        {isManager && (
+          <Link
+            to={editPath}
+            aria-label="Edit status"
+            className="text-sm font-semibold text-accent-bright active:opacity-70"
           >
-            <option value="active">Active</option>
-            <option value="sold">Sold</option>
-            <option value="deceased">Deceased</option>
-            <option value="archived">Archived (hidden from list)</option>
-          </SelectField>
-          <p className="text-lg text-gray-500">
-            To remove a duplicate, set status to Archived. The record stays in the database but
-            no longer appears on the Herd list.
-          </p>
-          {statusError && <p className="text-lg text-red-600">{statusError}</p>}
-          <button
-            type="button"
-            onClick={handleStatusSave}
-            disabled={savingStatus || status === animal.status}
-            className="flex h-14 items-center justify-center rounded-lg bg-gray-900 text-lg font-semibold text-white active:bg-gray-700 disabled:opacity-50"
-          >
-            {savingStatus ? 'Saving…' : 'Save status'}
-          </button>
-        </section>
-      ) : (
-        <InfoRow label="Status" value={STATUS_LABEL[animal.status] ?? animal.status} />
-      )}
+            Edit
+          </Link>
+        )}
+      </div>
     </div>
   )
 }
-
-export { STATUS_LABEL }

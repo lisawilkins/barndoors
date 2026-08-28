@@ -10,7 +10,7 @@ const SECTIONS = [
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
       <main className="flex flex-1 flex-col justify-center gap-4 px-4 py-8 sm:px-6">
@@ -19,7 +19,7 @@ export default function Home() {
             <Link
               key={label}
               to={to}
-              className="flex h-32 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-2xl font-semibold text-gray-900 shadow-sm active:bg-gray-100"
+              className="flex h-32 items-center justify-center rounded-md border border-border-card bg-surface-card font-display text-xl font-semibold text-ink-900 active:bg-white"
             >
               {label}
             </Link>

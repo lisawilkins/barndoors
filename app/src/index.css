@@ -1,5 +1,49 @@
 @import "tailwindcss";
 
+@theme {
+  /* Ink (text) */
+  --color-ink-900: #241c17;
+  --color-ink-600: #6e6259;
+  --color-ink-400: #8b7d71;
+  --color-ink-300: #a29385;
+  --color-ink-200: #c3b4a2;
+
+  /* Surfaces */
+  --color-surface-canvas: #efe7dc;
+  --color-surface-card: #faf6f0;
+  --color-surface-input: #fdfbf8;
+
+  /* Borders & dividers */
+  --color-border-card: #d8ccbd;
+  --color-border-input: #dcd1c2;
+  --color-border-divider: #e7ddd0;
+  --color-border-hairline: #f0e8dc;
+  --color-border-hairline-2: #f4ede3;
+
+  /* Accent — fuchsia */
+  --color-accent-bright: #9c239e;
+  --color-accent-deep: #4f0750;
+
+  /* Chip */
+  --color-chip-bg: #f3e6da;
+  --color-chip-fg: #4f0750;
+
+  /* Placeholder imagery tones */
+  --color-placeholder-tan-1: #cdbba4;
+  --color-placeholder-tan-2: #e3d7c6;
+
+  /* Type */
+  --font-display: "Bitter", Georgia, serif;
+  --font-body: "Public Sans", system-ui, sans-serif;
+  --text-2xs: 11px;
+
+  /* Radii */
+  --radius-badge: 5px;
+
+  /* Shadow */
+  --shadow-card: 0 18px 40px -24px rgb(36 28 23 / 0.4);
+}
+
 html,
 body,
 #root {
@@ -8,6 +52,23 @@ body,
 
 body {
   margin: 0;
+  background: var(--color-surface-canvas);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 20;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.fscroll::-webkit-scrollbar {
+  width: 0;
 }
 
 /* Feed schedule report (print-friendly spreadsheet view) */
