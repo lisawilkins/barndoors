@@ -14,6 +14,7 @@ import Chores from './pages/Chores'
 import ChoreList from './pages/ChoreList'
 import Reports from './pages/Reports'
 import FeedScheduleReport from './pages/FeedScheduleReport'
+import FeedScheduleCardReport from './pages/FeedScheduleCardReport'
 
 function App() {
   return (
@@ -137,6 +138,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <FeedScheduleReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/feed-schedule-cards"
+            element={
+              <ProtectedRoute>
+                <FeedScheduleCardReport />
               </ProtectedRoute>
             }
           />
