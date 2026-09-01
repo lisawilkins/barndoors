@@ -231,7 +231,7 @@ export default function WranglerForm() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-surface-canvas">
-        <TopNav />
+        <TopNav backTo="/wranglers" backLabel="Wranglers" />
         <p className="px-4 py-6 text-[15px] text-ink-400">Loading…</p>
       </div>
     )
@@ -239,7 +239,7 @@ export default function WranglerForm() {
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-canvas">
-      <TopNav />
+      <TopNav backTo="/wranglers" backLabel="Wranglers" />
 
       <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <h1 className="font-display text-3xl font-light text-ink-900">
