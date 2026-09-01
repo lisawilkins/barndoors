@@ -239,6 +239,95 @@ nothing in the app reads them; dropping them is a separate, flagged migration.
 
 ---
 
+## Part 4 — Wranglers
+
+Wranglers participate in riding/working sessions. They're purely tracked data — like a
+`head` record, they never sign in or use the app at all — so they follow the app's ordinary
+visibility rule: hands read, managers/admins write (`apply_standard_policies()`, no special
+hand lockout).
+
+### `wranglers`
+| Field | Notes |
+|---|---|
+| id | |
+| first_name / last_initial | the only identifying fields collected — no phone, email, or other PII |
+| age | |
+| gender | |
+| notes | free text, manager-filled |
+| status | `active` \| `archived` (soft delete) |
+
+### `wrangler_time_slots`
+Predefined, manager-extensible list (same pattern as `feed_items`/`turnout_locations`) rather
+than free-form start/end times, so a printed schedule scans consistently. Day-specific — "Mon
+5:30–6:30 PM" and "Tue 5:30–6:30 PM" are separate rows, even with the same `name` — since a
+slot's own day is what makes assigning a wrangler to it a *recurring weekly* assignment.
+Managed on its own page (`/wranglers/time-slots`), not inline on a wrangler's profile.
+| Field | Notes |
+|---|---|
+| id | |
+| name | e.g. "5:30–6:30 PM" |
+| day_of_week | `mon`–`sun` |
+| sort_order | |
+| active | `unique (day_of_week, name)` |
+
+### `wrangler_recurring_assignments`
+The standing weekly pattern (e.g. "Bella rides with David every Monday"). Built directly on a
+wrangler's own profile (`WranglerForm.jsx`): pick a day, pick a time slot for that day, pick
+Ride or Work, and a horse if riding. Since `time_slot_id` already carries a day (via
+`wrangler_time_slots.day_of_week`), the assignment itself needs no separate days-of-week or
+date range — one row per (wrangler, time slot) is the whole standing pattern.
+| Field | Notes |
+|---|---|
+| id | |
+| wrangler_id | FK → wranglers |
+| time_slot_id | FK → wrangler_time_slots — its `day_of_week` is this assignment's day |
+| activity | `riding` \| `working` |
+| horse_id | FK → head, nullable — only set when `activity = 'riding'` (check constraint) |
+| updated_at / updated_by | `unique (wrangler_id, time_slot_id)` — one standing assignment per slot |
+
+### `wrangler_recurring_skips`
+Cancels one occurrence of a recurring pattern (e.g. "Bella won't be there on the 23rd")
+without touching the standing pattern.
+| Field | Notes |
+|---|---|
+| id | |
+| recurring_assignment_id | FK → wrangler_recurring_assignments, on delete cascade |
+| date | the skipped occurrence; `unique (recurring_assignment_id, date)` |
+
+### `wrangler_assignments`
+One-off, non-recurring assignments, added from the calendar (`WranglerSchedule.jsx`), not the
+profile (e.g. "Caden is filling in the first slot next Friday"). Also how a one-time change to
+a recurring slot is represented: pair a skip on the recurring row with one of these. The
+calendar's picker only offers time slots whose `day_of_week` matches the chosen date.
+| Field | Notes |
+|---|---|
+| id | |
+| wrangler_id | FK → wranglers |
+| date | |
+| time_slot_id | FK → wrangler_time_slots |
+| activity | `riding` \| `working` |
+| horse_id | FK → head, nullable — riding only (check constraint) |
+| updated_at / updated_by | `unique (wrangler_id, date, time_slot_id)` — no double-booking |
+
+### `wrangler_calendar_notes`
+Standing notes not tied to any specific wrangler — one per calendar day, or one per whole
+month (e.g. "Smoky can't be ridden this month"). One table, mutually-exclusive scope columns,
+same pattern as `chore_items_has_one_owner`'s `list_id`/`section_id` split.
+| Field | Notes |
+|---|---|
+| id | |
+| note_date | set for a day note; null for a month note |
+| note_month | set (first-of-month, e.g. `2026-09-01`) for a month note; null for a day note. Check constraint requires exactly one of `note_date`/`note_month` |
+| body | |
+| updated_at / updated_by | |
+
+**Resolving a day's effective assignments** (client-side, in `WranglerSchedule.jsx`): for a
+given date, take every `wrangler_recurring_assignments` row whose time slot's `day_of_week`
+matches that weekday, minus any with a matching `wrangler_recurring_skips` row for that date,
+union any `wrangler_assignments` rows for that exact date.
+
+---
+
 ## Reports
 
 No new tables — reports are filtered, fixed-layout, **print-friendly browser views** (styled for `@media print`, no PDF generation for v1) built on top of existing data. Some reports also offer a plain CSV download of the same data (client-side generated, no new dependency) as a second, non-print output — e.g. the feed schedule report.

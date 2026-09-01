@@ -185,6 +185,22 @@ baked into it that should not be silently changed:
   individual shift view are all filtered queries over existing tables — fixed columns,
   no dynamic column selection in v1. (A chore list prints from the list itself, not
   from `/reports`.)
+- **Wranglers are tracked data, not app users.** They never sign in — same read/write split
+  as `head` (hands read, managers/admins write). Only first name, last initial, age, and
+  gender are collected; more fields can be added later, but nothing beyond that without
+  asking. **Time slots are day-specific** (`wrangler_time_slots.day_of_week` — "Mon
+  5:30–6:30 PM" is a different row from "Tue 5:30–6:30 PM"), managed on their own page
+  (`/wranglers/time-slots`), not inline on a wrangler's profile. Because a slot already
+  carries its day, a **standing weekly assignment is just one row** — pick a day, pick a
+  time slot for that day, pick Ride or Work, and a horse if riding — built directly on the
+  wrangler's own profile (`WranglerForm.jsx`), not the calendar. `wrangler_recurring_skips`
+  cancels a single occurrence of a standing assignment without touching the pattern; the
+  calendar (`WranglerSchedule.jsx`) is where one-off, non-recurring assignments get added
+  (`wrangler_assignments` — also how a one-time change to a standing slot is represented:
+  skip it, then add a one-off), plus day/month standing notes and printing. A horse
+  (`head_id`) can only attach to a `riding` assignment, never `working`. Standing notes not
+  tied to a wrangler live in `wrangler_calendar_notes`, scoped to either a day or a whole
+  month (mutually exclusive, same pattern as `chore_items_has_one_owner`).
 
 ## Herd list UX
 
@@ -242,11 +258,12 @@ Every authenticated screen shares the same top-level layout:
 
 - **Top nav (`TopNav`):** "BarnDoors" wordmark on the left (links to `/`), hamburger menu
   button on the right. The hamburger dropdown shows profile name/role, then links to
-  **Herd**, **Hands**, **Chores**, and **Reports** (same four sections as the home screen,
-  so they're reachable from any page), then **Sign out**.
+  **Herd**, **Hands**, **Chores**, **Wranglers**, and **Reports** (same sections as the home
+  screen, so they're reachable from any page), then **Sign out**.
 - **Home screen (`/`):** post-login landing with large section buttons — **Herd**,
-  **Hands**, **Chores**, **Reports** — linking to `/herd`, `/hands`, `/chores`, and
-  `/reports`. This is the primary entry point to major app areas; Calendar isn't on home yet.
+  **Hands**, **Chores**, **Wranglers**, **Reports** — linking to `/herd`, `/hands`,
+  `/chores`, `/wranglers`, and `/reports`. This is the primary entry point to major app
+  areas; the staff shift calendar isn't on home yet.
 - **Source layout:** pages in `app/src/pages/`, shared UI in `app/src/components/`, helpers
   in `app/src/lib/`.
 
