@@ -268,7 +268,7 @@ Managed on its own page (`/wranglers/time-slots`), not inline on a wrangler's pr
 | name | e.g. "5:30–6:30 PM" |
 | day_of_week | `mon`–`sun` |
 | sort_order | |
-| active | `unique (day_of_week, name)` |
+| active | `unique (day_of_week, name) where active` — archived slots keep their name without blocking a new active slot from reusing it |
 
 ### `wrangler_recurring_assignments`
 The standing weekly pattern (e.g. "Bella rides with David every Monday"). Built directly on a
