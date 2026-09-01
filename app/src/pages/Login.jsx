@@ -44,46 +44,37 @@ function PasswordField({ label, value, onChange, autoFocus, minLength }) {
   )
 }
 
-// Non-interactive here — the role was already picked on the splash screen.
-// Just shows which one this form is for.
-function RolePills({ active }) {
+// Real tabs, not a segmented pill — switching roles just swaps which fields
+// are shown below, no separate "continue" step in between.
+function RoleTabs({ active, onSelect }) {
   return (
-    <div className="flex w-full gap-1 rounded-md bg-surface-canvas p-1">
-      <span
-        className={`flex h-11 flex-1 items-center justify-center rounded-sm text-[15px] font-bold ${
-          active === 'manager' ? 'bg-accent-deep text-surface-card' : 'text-ink-400'
-        }`}
-      >
-        Manager
-      </span>
-      <span
-        className={`flex h-11 flex-1 items-center justify-center rounded-sm text-[15px] font-bold ${
-          active === 'hand' ? 'bg-accent-deep text-surface-card' : 'text-ink-400'
-        }`}
-      >
-        Hand
-      </span>
+    <div className="flex w-full border-b border-border-divider">
+      {[
+        { value: 'manager', label: 'Manager' },
+        { value: 'hand', label: 'Hand' },
+      ].map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onSelect(value)}
+          aria-selected={active === value}
+          role="tab"
+          className={`flex-1 border-b-2 pb-3 text-[15px] font-bold ${
+            active === value
+              ? 'border-accent-bright text-ink-900'
+              : 'border-transparent text-ink-400 active:text-ink-600'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
     </div>
-  )
-}
-
-function BackButton({ onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label="Back"
-      className="flex h-11 w-11 items-center justify-center self-start rounded-md text-ink-400 active:bg-surface-canvas"
-    >
-      <span className="material-symbols-outlined text-[22px]">arrow_back</span>
-    </button>
   )
 }
 
 export default function Login() {
   const { session, signIn, signInAsHand } = useAuth()
   const location = useLocation()
-  const [step, setStep] = useState('splash') // 'splash' | 'manager' | 'hand'
   const [role, setRole] = useState('manager')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -95,83 +86,47 @@ export default function Login() {
     return <Navigate to={from} replace />
   }
 
-  function goToSplash() {
-    setStep('splash')
-    setError('')
+  function selectRole(nextRole) {
+    if (nextRole === role) return
+    setRole(nextRole)
+    setEmail('')
     setPassword('')
+    setError('')
   }
 
-  function handleContinue() {
-    setStep(role)
-  }
+  const canSubmit = role === 'manager' ? email.trim() !== '' && password !== '' : password !== ''
 
   async function handleSubmit(event) {
     event.preventDefault()
+    if (!canSubmit) return
+
     setError('')
     setSubmitting(true)
 
-    const { error: authError } =
-      step === 'manager' ? await signIn(email, password) : await signInAsHand(password)
+    const { error: authError } = role === 'manager' ? await signIn(email, password) : await signInAsHand(password)
 
     setSubmitting(false)
 
     if (authError) {
       setError(
-        step === 'manager' ? authError.message : 'Incorrect password. Ask a manager for the current one.',
+        role === 'manager' ? authError.message : 'Incorrect password. Ask a manager for the current one.',
       )
     }
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-surface-canvas px-4 py-8">
-      <div className="w-full max-w-sm">
-        {step === 'splash' && (
-          <div className="flex flex-col items-center gap-8">
-            <div className="flex flex-col items-center gap-2">
-              <span className="font-display text-5xl font-light text-ink-900">Barn Doors</span>
-              <span className="text-[15px] text-ink-400">Login below</span>
-            </div>
+      <div className="flex w-full max-w-sm flex-col gap-6">
+        <div className="flex flex-col items-center gap-2">
+          <span className="font-display text-5xl font-light text-ink-900">Barn Doors</span>
+          <span className="text-[15px] text-ink-400">Login below</span>
+        </div>
 
-            <div className="flex w-full flex-col gap-6">
-              <div className="flex w-full gap-1 rounded-md bg-surface-card p-1">
-                <button
-                  type="button"
-                  onClick={() => setRole('manager')}
-                  className={`flex h-11 flex-1 items-center justify-center rounded-sm text-[15px] font-bold ${
-                    role === 'manager' ? 'bg-accent-deep text-surface-card' : 'text-ink-400'
-                  }`}
-                >
-                  Manager
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('hand')}
-                  className={`flex h-11 flex-1 items-center justify-center rounded-sm text-[15px] font-bold ${
-                    role === 'hand' ? 'bg-accent-deep text-surface-card' : 'text-ink-400'
-                  }`}
-                >
-                  Hand
-                </button>
-              </div>
+        <RoleTabs active={role} onSelect={selectRole} />
 
-              <button
-                type="button"
-                onClick={handleContinue}
-                className="flex h-12 items-center justify-center rounded-md bg-accent-bright text-[16px] font-bold text-white active:opacity-90"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 'manager' && (
-          <div className="flex flex-col gap-6">
-            <BackButton onClick={goToSplash} />
-            <span className="font-display text-2xl font-light text-ink-900">Barn Doors</span>
-            <RolePills active="manager" />
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          {role === 'manager' && (
+            <>
               <label className="flex flex-col gap-1">
                 <span className="text-xs font-semibold text-ink-400">Email</span>
                 <input
@@ -186,41 +141,23 @@ export default function Login() {
               </label>
 
               <PasswordField label="Password" value={password} onChange={setPassword} minLength={6} />
+            </>
+          )}
 
-              {error && <p className="text-[15px] text-red-600">{error}</p>}
+          {role === 'hand' && (
+            <PasswordField label="Password" value={password} onChange={setPassword} />
+          )}
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-1 flex h-12 items-center justify-center rounded-md bg-accent-bright text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
-              >
-                {submitting ? 'Signing in…' : 'Sign in'}
-              </button>
-            </form>
-          </div>
-        )}
+          {error && <p className="text-[15px] text-red-600">{error}</p>}
 
-        {step === 'hand' && (
-          <div className="flex flex-col gap-6">
-            <BackButton onClick={goToSplash} />
-            <span className="font-display text-2xl font-light text-ink-900">Barn Doors</span>
-            <RolePills active="hand" />
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-              <PasswordField label="Password" value={password} onChange={setPassword} autoFocus />
-
-              {error && <p className="text-[15px] text-red-600">{error}</p>}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-1 flex h-12 items-center justify-center rounded-md bg-accent-bright text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
-              >
-                {submitting ? 'Please wait…' : 'Sign in'}
-              </button>
-            </form>
-          </div>
-        )}
+          <button
+            type="submit"
+            disabled={!canSubmit || submitting}
+            className="mt-1 flex h-12 items-center justify-center rounded-md bg-accent-bright text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
+          >
+            {submitting ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
       </div>
     </div>
   )
