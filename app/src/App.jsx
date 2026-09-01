@@ -15,6 +15,10 @@ import ChoreList from './pages/ChoreList'
 import Reports from './pages/Reports'
 import FeedScheduleReport from './pages/FeedScheduleReport'
 import FeedScheduleCardReport from './pages/FeedScheduleCardReport'
+import Wranglers from './pages/Wranglers'
+import WranglerForm from './pages/WranglerForm'
+import WranglerSchedule from './pages/WranglerSchedule'
+import WranglerTimeSlots from './pages/WranglerTimeSlots'
 
 function App() {
   return (
@@ -146,6 +150,53 @@ function App() {
             element={
               <ProtectedRoute>
                 <FeedScheduleCardReport />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/wranglers"
+            element={
+              <ProtectedRoute>
+                <Wranglers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wranglers/new"
+            element={
+              <ProtectedRoute>
+                <ManagerRoute>
+                  <WranglerForm />
+                </ManagerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wranglers/schedule"
+            element={
+              <ProtectedRoute>
+                <WranglerSchedule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wranglers/time-slots"
+            element={
+              <ProtectedRoute>
+                <ManagerRoute>
+                  <WranglerTimeSlots />
+                </ManagerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wranglers/:id"
+            element={
+              <ProtectedRoute>
+                <ManagerRoute>
+                  <WranglerForm />
+                </ManagerRoute>
               </ProtectedRoute>
             }
           />

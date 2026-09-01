@@ -6,10 +6,15 @@ const MENU_LINKS = [
   { label: 'Herd', to: '/herd' },
   { label: 'Hands', to: '/hands' },
   { label: 'Chores', to: '/chores' },
+  { label: 'Wranglers', to: '/wranglers' },
   { label: 'Reports', to: '/reports' },
 ]
 
-export default function TopNav() {
+// `backTo`/`backLabel` swap the "BarnDoors" wordmark for a "‹ Section" back
+// link — used by subpages of a section (e.g. Wranglers' Time Slots and
+// Schedule views) so the header reflects where you are instead of always
+// restating the site name. The hamburger menu is unchanged either way.
+export default function TopNav({ backTo, backLabel }) {
   const { profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -34,9 +39,19 @@ export default function TopNav() {
 
   return (
     <header className="relative flex items-center justify-between border-b border-border-divider bg-surface-card px-4 py-3 sm:px-6">
-      <Link to="/" className="font-display text-xl font-light tracking-tight text-ink-900">
-        BarnDoors
-      </Link>
+      {backTo ? (
+        <Link
+          to={backTo}
+          className="flex items-center gap-0.5 font-display text-xl font-light tracking-tight text-ink-900"
+        >
+          <span className="material-symbols-outlined text-[22px]">chevron_left</span>
+          {backLabel}
+        </Link>
+      ) : (
+        <Link to="/" className="font-display text-xl font-light tracking-tight text-ink-900">
+          BarnDoors
+        </Link>
+      )}
 
       <div ref={menuRef} className="relative">
         <button
