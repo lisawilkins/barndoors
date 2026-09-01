@@ -56,7 +56,7 @@ export default function ManagerForm() {
     <div className="flex min-h-screen flex-col bg-white">
       <TopNav />
 
-      <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
+      <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <h1 className="text-3xl font-semibold text-gray-900">Add manager or admin</h1>
         <p className="text-lg text-gray-500">
           Creates a new login with full access. They'll sign in with the email and password below.

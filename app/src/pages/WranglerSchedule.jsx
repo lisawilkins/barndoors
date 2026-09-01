@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import MonthCalendar from '../components/MonthCalendar'
+import LandscapeContent from '../components/LandscapeContent'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { TextAreaField, SelectField } from '../components/FormField'
 import { useAuth } from '../lib/AuthContext'
@@ -503,7 +504,7 @@ export default function WranglerSchedule() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-4xl items-center justify-between print:hidden">
+        <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
           <span className="font-display text-3xl font-light text-ink-900">
             {view === 'monthly' ? 'Monthly View' : 'Weekly View'}
           </span>
@@ -537,7 +538,7 @@ export default function WranglerSchedule() {
         </div>
 
         {view === 'monthly' ? (
-          <div className="flex w-full max-w-4xl items-center justify-between print:hidden">
+          <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
             <button
               type="button"
               onClick={() => changeMonth(-1)}
@@ -557,7 +558,7 @@ export default function WranglerSchedule() {
             </button>
           </div>
         ) : (
-          <div className="flex w-full max-w-4xl items-center justify-between print:hidden">
+          <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
             <button
               type="button"
               onClick={() => changeWeek(-1)}
@@ -579,7 +580,7 @@ export default function WranglerSchedule() {
         )}
 
         {view === 'monthly' && (
-          <div className="flex w-full max-w-4xl items-center justify-between gap-3 rounded-md border border-border-card bg-white px-3 py-2 print:hidden">
+          <div className="flex w-full max-w-[800px] items-center justify-between gap-3 rounded-md border border-border-card bg-white px-3 py-2 print:hidden">
             {monthNote ? (
               <p className="flex-1 text-[14px] italic text-ink-600">{monthNote.body}</p>
             ) : (
@@ -601,11 +602,13 @@ export default function WranglerSchedule() {
         {error && <p className="text-[15px] text-red-600 print:hidden">{error}</p>}
 
         {!loading && !error && view === 'monthly' && (
-          <MonthCalendar year={year} month={month} renderDay={renderDay} className="w-full max-w-4xl print:hidden" />
+          <LandscapeContent className="print:hidden">
+            <MonthCalendar year={year} month={month} renderDay={renderDay} className="w-full" />
+          </LandscapeContent>
         )}
 
         {!loading && !error && view === 'weekly' && (
-          <div className="flex w-full max-w-4xl flex-col gap-3 print:hidden">
+          <div className="flex w-full max-w-[800px] flex-col gap-3 print:hidden">
             {weekDays.map((date) => {
               const iso = isoDate(date)
               const expanded = expandedDays.has(iso)

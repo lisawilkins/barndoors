@@ -282,6 +282,17 @@ Every authenticated screen shares the same top-level layout:
 - Don't introduce new external services/APIs (calendar OAuth, offline sync engines,
   push notification providers, PDF/CSV generation libraries, etc.) without flagging
   the addition — several of these were deliberately scoped out for this iteration.
+- **Page content width has two tiers**, both centered, independent of the full-bleed
+  header/body background: the default is `max-w-[800px]`; a wide, inherently
+  landscape-shaped display (a multi-day calendar grid, a multi-column spreadsheet-style
+  table) uses the shared `LandscapeContent` component (`app/src/components/
+  LandscapeContent.jsx`) instead — fluid between `1000px`–`1400px`, scrolling
+  horizontally on its own below a 1000px viewport without dragging the header or
+  surrounding page controls into that scroll region. Only the data grid/table itself
+  gets this treatment — toolbars, nav controls, and titles around it stay at the
+  default 800px. Used today by the Wrangler Schedule's Monthly view and the Feed
+  Schedule table report; reuse it for any future landscape view (e.g. the planned Hands
+  shift calendar) rather than inventing a new width scheme.
 
 ## Security review
 
