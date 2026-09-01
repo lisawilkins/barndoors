@@ -141,19 +141,12 @@ export default function FeedScheduleCardReport() {
   return (
     <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
       <div className="print:hidden">
-        <TopNav />
+        <TopNav backTo="/reports" backLabel="Reports" />
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
         <div className="flex w-full max-w-5xl items-center justify-between print:hidden">
           <div className="flex flex-col gap-1">
-            <Link
-              to="/reports"
-              className="flex items-center gap-0.5 text-[14px] font-semibold text-accent-bright active:opacity-70"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-              Back to reports
-            </Link>
             <h1 className="font-display text-3xl font-light text-ink-900">
               Feed schedule &middot; Card view
             </h1>

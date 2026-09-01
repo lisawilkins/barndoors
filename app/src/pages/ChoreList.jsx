@@ -219,7 +219,7 @@ export default function ChoreList() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-white">
-        <TopNav />
+        <TopNav backTo="/chores" backLabel="Chores" />
         <main className="p-4">
           <p className="text-lg text-gray-500">Loading…</p>
         </main>
@@ -230,7 +230,7 @@ export default function ChoreList() {
   if (!list) {
     return (
       <div className="flex min-h-screen flex-col bg-white">
-        <TopNav />
+        <TopNav backTo="/chores" backLabel="Chores" />
         <main className="flex flex-col gap-3 p-4">
           <p className="text-lg text-red-600">{error || 'That list no longer exists.'}</p>
           <Link to="/chores" className="text-lg font-semibold text-accent-bright active:opacity-70">
@@ -248,7 +248,7 @@ export default function ChoreList() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       <div className="print:hidden">
-        <TopNav />
+        <TopNav backTo="/chores" backLabel="Chores" />
       </div>
 
       {error && !isEditing && (
