@@ -7,7 +7,7 @@ export default function PlaceholderPage({ title }) {
     <div className="flex min-h-screen flex-col bg-white">
       <TopNav />
 
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-8 text-center sm:px-6">
+      <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col items-center justify-center gap-4 px-4 py-8 text-center sm:px-6">
         <h1 className="text-3xl font-semibold text-gray-900">{title}</h1>
         <p className="max-w-xs text-lg text-gray-500">
           This screen is coming soon.

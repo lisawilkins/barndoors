@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import TopNav from '../components/TopNav'
+import LandscapeContent from '../components/LandscapeContent'
 import { supabase } from '../lib/supabaseClient'
 import { formatFeedAmount, orderFeedItems } from '../lib/feedFormat'
 import { downloadCsv } from '../lib/csv'
@@ -140,7 +141,7 @@ export default function FeedScheduleReport() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-5xl items-center justify-between print:hidden">
+        <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
           <div className="flex flex-col gap-1">
             <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
           </div>
@@ -168,65 +169,67 @@ export default function FeedScheduleReport() {
         {error && <p className="text-[15px] text-red-600 print:hidden">{error}</p>}
 
         {!loading && !error && (
-          <div className="feed-report-page flex w-full max-w-5xl flex-col bg-white p-6 shadow-md print:max-w-none print:p-0 print:shadow-none">
-            <div className="flex items-baseline justify-between pb-2">
+          <>
+            <div className="flex w-full max-w-[800px] items-baseline justify-between print:max-w-none">
               <h2 className="text-xl font-bold text-gray-900">Feed schedule</h2>
               <span className="text-sm text-gray-500">{today}</span>
             </div>
 
             {head.length === 0 ? (
-              <p className="text-lg text-gray-500">No active animals yet.</p>
+              <p className="w-full max-w-[800px] text-lg text-gray-500">No active animals yet.</p>
             ) : (
-              <div className="flex flex-1 flex-col justify-center">
-                <table
-                  className="feed-report-table w-full border-collapse"
-                  style={{ fontSize: `${fontSizePx}px` }}
-                >
-                  <colgroup>
-                    <col style={{ width: `${NAME_COL_PCT}%` }} />
-                    {feedItems.map((item) => (
-                      <col
-                        key={item.id}
-                        style={{ width: `${FEED_COLS_PCT / Math.max(1, feedItems.length)}%` }}
-                      />
-                    ))}
-                    <col style={{ width: `${NOTES_COL_PCT}%` }} />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th className="feed-report-th text-left">Horse name</th>
+              <LandscapeContent innerClassName="feed-report-page flex flex-col bg-white p-6 shadow-md print:p-0 print:shadow-none">
+                <div className="flex flex-1 flex-col justify-center">
+                  <table
+                    className="feed-report-table w-full border-collapse"
+                    style={{ fontSize: `${fontSizePx}px` }}
+                  >
+                    <colgroup>
+                      <col style={{ width: `${NAME_COL_PCT}%` }} />
                       {feedItems.map((item) => (
-                        <th key={item.id} className="feed-report-th text-left">
-                          {item.name}
-                        </th>
+                        <col
+                          key={item.id}
+                          style={{ width: `${FEED_COLS_PCT / Math.max(1, feedItems.length)}%` }}
+                        />
                       ))}
-                      <th className="feed-report-th text-left">Feed notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {head.map((animal, index) => (
-                      <tr key={animal.id} className={index % 2 === 1 ? 'bg-gray-50' : undefined}>
-                        <td className="feed-report-td font-semibold text-gray-900">
-                          {animal.name || animal.tag_id || 'Unnamed'}
-                        </td>
-                        {feedItems.map((item) => {
-                          const planRow = planByHead[animal.id]?.[item.id]
-                          return (
-                            <td key={item.id} className="feed-report-td text-gray-700">
-                              {formatFeedAmount(planRow, item)}
-                            </td>
-                          )
-                        })}
-                        <td className="feed-report-td whitespace-pre-line text-gray-700">
-                          {animal.feed_notes?.trim() || ''}
-                        </td>
+                      <col style={{ width: `${NOTES_COL_PCT}%` }} />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th className="feed-report-th text-left">Horse name</th>
+                        {feedItems.map((item) => (
+                          <th key={item.id} className="feed-report-th text-left">
+                            {item.name}
+                          </th>
+                        ))}
+                        <th className="feed-report-th text-left">Feed notes</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {head.map((animal, index) => (
+                        <tr key={animal.id} className={index % 2 === 1 ? 'bg-gray-50' : undefined}>
+                          <td className="feed-report-td font-semibold text-gray-900">
+                            {animal.name || animal.tag_id || 'Unnamed'}
+                          </td>
+                          {feedItems.map((item) => {
+                            const planRow = planByHead[animal.id]?.[item.id]
+                            return (
+                              <td key={item.id} className="feed-report-td text-gray-700">
+                                {formatFeedAmount(planRow, item)}
+                              </td>
+                            )
+                          })}
+                          <td className="feed-report-td whitespace-pre-line text-gray-700">
+                            {animal.feed_notes?.trim() || ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </LandscapeContent>
             )}
-          </div>
+          </>
         )}
       </main>
     </div>

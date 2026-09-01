@@ -303,7 +303,7 @@ export default function Herd() {
     <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
-      <main className="flex flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
+      <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between">
           <h1 className="font-display text-3xl font-light text-ink-900">Herd</h1>
           {isManager && (

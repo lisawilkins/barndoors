@@ -194,7 +194,7 @@ export default function ChoreListEdit({
   const titleError = titleTouched && !title.trim()
 
   return (
-    <div className="flex flex-col gap-2.5 p-4">
+    <div className="mx-auto flex w-full max-w-[800px] flex-col gap-2.5 p-4">
       <div className="flex flex-col gap-1.5">
         <input
           value={title}

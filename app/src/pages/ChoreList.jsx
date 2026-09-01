@@ -220,7 +220,7 @@ export default function ChoreList() {
     return (
       <div className="flex min-h-screen flex-col bg-white">
         <TopNav backTo="/chores" backLabel="Chores" />
-        <main className="p-4">
+        <main className="mx-auto w-full max-w-[800px] p-4">
           <p className="text-lg text-gray-500">Loading…</p>
         </main>
       </div>
@@ -231,7 +231,7 @@ export default function ChoreList() {
     return (
       <div className="flex min-h-screen flex-col bg-white">
         <TopNav backTo="/chores" backLabel="Chores" />
-        <main className="flex flex-col gap-3 p-4">
+        <main className="mx-auto flex w-full max-w-[800px] flex-col gap-3 p-4">
           <p className="text-lg text-red-600">{error || 'That list no longer exists.'}</p>
           <Link to="/chores" className="text-lg font-semibold text-accent-bright active:opacity-70">
             Back to chores
@@ -256,15 +256,17 @@ export default function ChoreList() {
       )}
 
       {isEditing && (
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#F0DDB0] bg-[#FEF7E7] px-4 py-2.5">
-          <SaveStatus status={saveStatus} />
-          <button
-            type="button"
-            onClick={handleDone}
-            className="h-9 rounded-md bg-accent-bright px-[18px] text-[15px] font-semibold text-white active:opacity-90"
-          >
-            Done
-          </button>
+        <div className="sticky top-0 z-10 border-b border-[#F0DDB0] bg-[#FEF7E7]">
+          <div className="mx-auto flex w-full max-w-[800px] items-center justify-between px-4 py-2.5">
+            <SaveStatus status={saveStatus} />
+            <button
+              type="button"
+              onClick={handleDone}
+              className="h-9 rounded-md bg-accent-bright px-[18px] text-[15px] font-semibold text-white active:opacity-90"
+            >
+              Done
+            </button>
+          </div>
         </div>
       )}
 
@@ -280,7 +282,7 @@ export default function ChoreList() {
           onToast={handleToast}
         />
       ) : isPrint ? (
-        <main className="flex flex-col gap-3.5 p-4 print:p-0">
+        <main className="mx-auto flex w-full max-w-[800px] flex-col gap-3.5 p-4 print:max-w-none print:p-0">
           <div className="flex flex-wrap items-center justify-between gap-2.5 print:hidden">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
               Print preview
@@ -348,7 +350,7 @@ export default function ChoreList() {
           </div>
         </main>
       ) : (
-        <main className="flex flex-col gap-3.5 px-4 py-5">
+        <main className="mx-auto flex w-full max-w-[800px] flex-col gap-3.5 px-4 py-5">
           <div className="flex items-start justify-between gap-3">
             <h1 className="m-0 text-[26px] font-bold leading-tight tracking-tight">
               {displayTitle}

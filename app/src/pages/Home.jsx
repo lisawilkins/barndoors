@@ -14,7 +14,7 @@ export default function Home() {
     <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
-      <main className="flex flex-1 flex-col justify-start gap-4 px-4 py-8 sm:px-6">
+      <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col justify-start gap-4 px-4 py-8 sm:px-6">
         <ul className="flex flex-col gap-3">
           {SECTIONS.map(({ label, to }) => (
             <li key={label}>

@@ -145,7 +145,7 @@ export default function FeedScheduleCardReport() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-5xl items-center justify-between print:hidden">
+        <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
           <div className="flex flex-col gap-1">
             <h1 className="font-display text-3xl font-light text-ink-900">
               Feed schedule &middot; Card view
@@ -181,7 +181,7 @@ export default function FeedScheduleCardReport() {
             once there's room — this is what people actually browse day to
             day, the print layout below is only for the printed sheet. */}
         {!loading && !error && cards.length > 0 && (
-          <div className="grid w-full max-w-5xl grid-cols-2 gap-3 print:hidden sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid w-full max-w-[800px] grid-cols-2 gap-3 print:hidden sm:grid-cols-3 lg:grid-cols-4">
             {cards.map((card) => (
               <div
                 key={card.id}

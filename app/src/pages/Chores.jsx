@@ -57,7 +57,7 @@ export default function Chores() {
     <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav />
 
-      <main className="flex flex-1 flex-col gap-4 px-4 py-5">
+      <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-5">
         <h1 className="m-0 font-display text-3xl font-light text-ink-900">Chores</h1>
 
         {error && <p className="text-[15px] text-red-600">{error}</p>}
