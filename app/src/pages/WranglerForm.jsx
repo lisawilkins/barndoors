@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
-import { TextField, TextAreaField, SelectField } from '../components/FormField'
+import { TextField, TextAreaField, SelectField, DateField } from '../components/FormField'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { WEEKDAYS } from '../lib/turnoutSchedule'
 
-const BLANK = { first_name: '', last_initial: '', age: '', gender: '', notes: '', status: 'active' }
+const BLANK = { first_name: '', last_initial: '', age: '', birthdate: '', notes: '', status: 'active' }
 
 function blankScheduleRow() {
   return { key: crypto.randomUUID(), id: null, day: 'mon', time_slot_id: '', activity: 'working', horse_id: '' }
@@ -40,7 +40,7 @@ export default function WranglerForm() {
         isEdit
           ? supabase
               .from('wranglers')
-              .select('first_name, last_initial, age, gender, notes, status')
+              .select('first_name, last_initial, age, birthdate, notes, status')
               .eq('id', id)
               .single()
           : Promise.resolve({}),
@@ -73,7 +73,7 @@ export default function WranglerForm() {
           setForm({
             ...wranglerResult.data,
             age: wranglerResult.data.age ?? '',
-            gender: wranglerResult.data.gender ?? '',
+            birthdate: wranglerResult.data.birthdate ?? '',
             notes: wranglerResult.data.notes ?? '',
           })
           initialStatusRef.current = wranglerResult.data.status
@@ -155,7 +155,7 @@ export default function WranglerForm() {
       first_name: form.first_name.trim(),
       last_initial: form.last_initial.trim(),
       age: form.age === '' ? null : Number(form.age),
-      gender: form.gender.trim() || null,
+      birthdate: form.birthdate || null,
       notes: form.notes.trim() || null,
       status: form.status,
       updated_by: profile?.id ?? null,
@@ -276,11 +276,11 @@ export default function WranglerForm() {
               value={form.age}
               onChange={(event) => update('age', event.target.value)}
             />
-            <TextField
-              label="Gender"
+            <DateField
+              label="Birthday"
               className="flex-1"
-              value={form.gender}
-              onChange={(event) => update('gender', event.target.value)}
+              value={form.birthdate}
+              onChange={(value) => update('birthdate', value)}
             />
           </div>
           <TextAreaField

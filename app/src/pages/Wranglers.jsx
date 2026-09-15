@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { formatDateUS } from '../lib/formatDate'
 import { formatDays } from '../lib/turnoutSchedule'
 import { wranglerShortName } from '../lib/wranglerSchedule'
 
@@ -20,7 +21,7 @@ export default function Wranglers() {
       const [wranglersResult, recurringResult, slotsResult] = await Promise.all([
         supabase
           .from('wranglers')
-          .select('id, first_name, last_initial, gender')
+          .select('id, first_name, last_initial, birthdate')
           .eq('status', 'active')
           .order('first_name', { ascending: true }),
         supabase.from('wrangler_recurring_assignments').select('wrangler_id, time_slot_id'),
@@ -112,7 +113,7 @@ export default function Wranglers() {
                   <span className="text-[15px] text-ink-400">
                     {[
                       daysByWrangler[wrangler.id] ? formatDays([...daysByWrangler[wrangler.id]]) : null,
-                      wrangler.gender,
+                      formatDateUS(wrangler.birthdate),
                     ]
                       .filter(Boolean)
                       .join(' · ') || 'No schedule yet'}

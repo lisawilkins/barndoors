@@ -252,7 +252,8 @@ hand lockout).
 | id | |
 | first_name / last_initial | the only identifying fields collected — no phone, email, or other PII |
 | age | |
-| gender | |
+| gender | deprecated — no longer shown or collected in the app; existing values are kept, not dropped, same precedent as `head.tag_id` |
+| birthdate | replaced `gender` in the form/list; stored as `date`, displayed `MM/DD/YYYY`; entry accepts typed dates in several formats (`9/10/2019`, `9-10-19`, `Sep 10 2019`) or a native date picker |
 | notes | free text, manager-filled |
 | status | `active` \| `archived` (soft delete) |
 

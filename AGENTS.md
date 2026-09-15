@@ -187,8 +187,10 @@ baked into it that should not be silently changed:
   from `/reports`.)
 - **Wranglers are tracked data, not app users.** They never sign in — same read/write split
   as `head` (hands read, managers/admins write). Only first name, last initial, age, and
-  gender are collected; more fields can be added later, but nothing beyond that without
-  asking. **Time slots are day-specific** (`wrangler_time_slots.day_of_week` — "Mon
+  birthdate are collected (birthdate replaced a former "gender" field on 2026-09-15 —
+  the `gender` column and its existing values still exist in the database, just hidden
+  from the app now, same precedent as `head.tag_id`); more fields can be added later,
+  but nothing beyond that without asking. **Time slots are day-specific** (`wrangler_time_slots.day_of_week` — "Mon
   5:30–6:30 PM" is a different row from "Tue 5:30–6:30 PM"), managed on their own page
   (`/wranglers/time-slots`), not inline on a wrangler's profile. Because a slot already
   carries its day, a **standing weekly assignment is just one row** — pick a day, pick a
