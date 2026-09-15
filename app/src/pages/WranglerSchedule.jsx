@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { TextAreaField, SelectField } from '../components/FormField'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { usePageOrientation } from '../lib/pageSetup'
 import {
   isoDate,
   weekdayKey,
@@ -107,6 +108,10 @@ export default function WranglerSchedule() {
 
   const [viewingNotesFor, setViewingNotesFor] = useState(null)
   const [deletingAssignment, setDeletingAssignment] = useState(null)
+
+  // Weekly print is one page per day (portrait); Monthly print keeps the
+  // letter-landscape default set in index.css.
+  usePageOrientation(view === 'weekly' ? 'portrait' : undefined)
 
   const wranglersById = useMemo(() => Object.fromEntries(wranglers.map((w) => [w.id, w])), [wranglers])
   const timeSlotsById = useMemo(() => Object.fromEntries(timeSlots.map((s) => [s.id, s])), [timeSlots])
@@ -491,6 +496,56 @@ export default function WranglerSchedule() {
     )
   }
 
+  // One page per day: a bold date header, then each time slot's assignments
+  // as a plain Wrangler/Horse/Notes table — no bell or trash icons, since
+  // those are screen-only controls. Type is a fixed, readable size and never
+  // shrunk to fit, same as the chore sheet (ChoreListPrint.jsx) — a day with
+  // an unusually long list simply runs onto a second page instead.
+  function renderWeeklyPrintDay(date) {
+    const iso = isoDate(date)
+    const assignments = effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
+    const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
+    const dayNote = dayNotesByDate[iso]
+
+    return (
+      <div key={iso} className="flex w-full flex-col gap-3 break-after-page pb-6">
+        <div className="flex flex-col gap-0.5 border-b-2 border-gray-900 pb-2">
+          <span className="text-sm font-bold text-gray-900">{weekRangeLabel(weekStart)}</span>
+          <span className="text-lg font-bold text-gray-900">{weekdayDateLabel(date)}</span>
+          {dayNote && <span className="text-sm italic text-gray-600">{dayNote.body}</span>}
+        </div>
+
+        {groups.map((group) => {
+          const slot = timeSlotsById[group.time_slot_id]
+          return (
+            <div key={`${group.time_slot_id}-${group.activity}`} className="flex flex-col">
+              <div className="flex items-baseline justify-between border-b border-gray-400 pb-1">
+                <span className="text-sm font-bold text-gray-900">{slot?.name ?? '—'}</span>
+                <span className="text-sm font-bold text-gray-900">{ACTIVITY_LABELS[group.activity]}</span>
+              </div>
+              {group.items.map((assignment) => {
+                const wrangler = wranglersById[assignment.wrangler_id]
+                const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
+                const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
+                return (
+                  <div key={key} className="flex break-inside-avoid gap-2 border-b border-gray-200 py-1 text-sm">
+                    <span className="w-28 flex-shrink-0 text-gray-900">{wranglerShortName(wrangler)}</span>
+                    <span className="w-20 flex-shrink-0 text-gray-900">{horse?.name ?? '--'}</span>
+                    <span className="flex flex-1 gap-1 text-gray-600">
+                      {/* fixed-width gutter reserved for an upcoming "no photos" flag on wranglers */}
+                      <span className="w-4 flex-shrink-0" />
+                      <span>{wrangler?.notes || '--'}</span>
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   const printTitleBlockPx =
     TITLE_ROW_PX + (monthNote ? MONTH_NOTE_ROW_PX : 0) + WEEKDAY_HEADER_ROW_PX + PRINT_SAFETY_BUFFER_PX
   const rowHeightPx = (PAGE_HEIGHT_PX - printTitleBlockPx) / weekRowsInMonth(year, month)
@@ -730,7 +785,7 @@ export default function WranglerSchedule() {
           </div>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && view === 'monthly' && (
           <div
             className="wrangler-schedule-print hidden w-full flex-col overflow-hidden bg-white print:flex"
             style={{ height: `${PAGE_HEIGHT_PX}px` }}
@@ -745,6 +800,18 @@ export default function WranglerSchedule() {
               renderDay={renderPrintDay}
               gridStyle={{ gridAutoRows: `${rowHeightPx}px`, fontSize: '8px', width: `${USABLE_WIDTH_PX}px` }}
             />
+          </div>
+        )}
+
+        {!loading && !error && view === 'weekly' && (
+          <div className="wrangler-schedule-print-week hidden w-full flex-col bg-white print:flex">
+            {weekDays
+              .filter(
+                (date) =>
+                  effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
+                    .length > 0,
+              )
+              .map((date) => renderWeeklyPrintDay(date))}
           </div>
         )}
       </main>
