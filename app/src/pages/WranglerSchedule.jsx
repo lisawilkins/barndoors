@@ -817,7 +817,7 @@ export default function WranglerSchedule() {
                                         aria-label={`${wranglerShortName(wrangler)}'s notes`}
                                         className="material-symbols-outlined text-[16px] text-accent-bright"
                                       >
-                                        notifications
+                                        sticky_note_2
                                       </button>
                                     )}
                                     {isManager && (

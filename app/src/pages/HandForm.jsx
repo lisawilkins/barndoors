@@ -5,11 +5,18 @@ import { TextField, SelectField, DateField } from '../components/FormField'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { optimizeImageForUpload } from '../lib/optimizeImageForUpload'
 import { sanitizeEmail, isValidEmail } from '../lib/email'
 import { WEEKDAYS } from '../lib/turnoutSchedule'
 import { isSchedulable } from '../lib/handSchedule'
 
-const BLANK = { name: '', phone: '', email: '', role: 'hand', status: 'active' }
+const BLANK = { name: '', phone: '', email: '', role: 'hand', photo_url: null, status: 'active' }
+
+function storagePathFromUrl(url) {
+  const marker = '/profile-photos/'
+  const index = url.indexOf(marker)
+  return index === -1 ? null : url.slice(index + marker.length)
+}
 
 function blankShiftRow() {
   return { key: crypto.randomUUID(), id: null, day: 'mon', shift_type_id: '', biweekly: false, biweekly_start_date: '' }
@@ -48,6 +55,10 @@ export default function HandForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [confirmingArchive, setConfirmingArchive] = useState(false)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('')
+  const [removePhoto, setRemovePhoto] = useState(false)
+  const [photoProcessing, setPhotoProcessing] = useState(false)
   const initialStatusRef = useRef('active')
   // Tracks a profile created by an earlier, partially-failed Save on this
   // same /hands/new visit — id from useParams() never changes mid-session,
@@ -65,7 +76,7 @@ export default function HandForm() {
         // visible in the Shift dropdown) rather than silently corrupt.
         supabase.from('hand_shift_types').select('id, name, day_of_week, active').order('sort_order'),
         isEdit
-          ? supabase.from('profiles').select('name, phone, email, role, status').eq('id', id).single()
+          ? supabase.from('profiles').select('name, phone, email, role, photo_url, status').eq('id', id).single()
           : Promise.resolve({ data: null }),
         isEdit
           ? supabase
@@ -90,7 +101,12 @@ export default function HandForm() {
         if (profileResult.error) {
           setError(profileResult.error.message)
         } else if (profileResult.data) {
-          setForm({ ...profileResult.data, phone: profileResult.data.phone ?? '', email: profileResult.data.email ?? '' })
+          setForm({
+            ...profileResult.data,
+            phone: profileResult.data.phone ?? '',
+            email: profileResult.data.email ?? '',
+            photo_url: profileResult.data.photo_url ?? null,
+          })
           initialStatusRef.current = profileResult.data.status
         }
 
@@ -134,8 +150,44 @@ export default function HandForm() {
     }
   }, [id, isEdit])
 
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl)
+    }
+  }, [photoPreviewUrl])
+
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  async function handlePhotoChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setPhotoProcessing(true)
+    try {
+      const optimized = await optimizeImageForUpload(file)
+      setPhotoPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current)
+        return URL.createObjectURL(optimized)
+      })
+      setPhotoFile(optimized)
+      setRemovePhoto(false)
+    } catch (photoError) {
+      setError(photoError.message || 'Could not process that image.')
+    } finally {
+      setPhotoProcessing(false)
+      event.target.value = ''
+    }
+  }
+
+  function handleRemovePhoto() {
+    setPhotoFile(null)
+    setPhotoPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current)
+      return ''
+    })
+    setRemovePhoto(true)
   }
 
   function updateShiftRow(key, field, value) {
@@ -259,6 +311,48 @@ export default function HandForm() {
       createdProfileIdRef.current = inserted.id
     }
 
+    if (photoFile) {
+      const path = `profiles/${profileId}/${Date.now()}.jpg`
+      const { error: uploadError } = await supabase.storage
+        .from('profile-photos')
+        .upload(path, photoFile, { upsert: true })
+
+      if (uploadError) {
+        setError(uploadError.message)
+        setSaving(false)
+        return
+      }
+
+      if (form.photo_url) {
+        const oldPath = storagePathFromUrl(form.photo_url)
+        if (oldPath) await supabase.storage.from('profile-photos').remove([oldPath])
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('profile-photos').getPublicUrl(path)
+      const { error: photoSaveError } = await supabase
+        .from('profiles')
+        .update({ photo_url: publicUrlData.publicUrl })
+        .eq('id', profileId)
+
+      if (photoSaveError) {
+        setError(photoSaveError.message)
+        setSaving(false)
+        return
+      }
+    } else if (removePhoto && form.photo_url) {
+      const oldPath = storagePathFromUrl(form.photo_url)
+      if (oldPath) await supabase.storage.from('profile-photos').remove([oldPath])
+      const { error: photoRemoveError } = await supabase
+        .from('profiles')
+        .update({ photo_url: null })
+        .eq('id', profileId)
+      if (photoRemoveError) {
+        setError(photoRemoveError.message)
+        setSaving(false)
+        return
+      }
+    }
+
     if (isSchedulable(form.role)) {
       // Deletes run first and are awaited before any insert/update — a
       // manager swapping a row for a new one on the same day+shift-type
@@ -365,6 +459,53 @@ export default function HandForm() {
             value={form.name}
             onChange={(event) => update('name', event.target.value)}
           />
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-ink-400">Photo</span>
+            <div className="flex items-center gap-3">
+              {photoPreviewUrl || (form.photo_url && !removePhoto) ? (
+                <img
+                  src={photoPreviewUrl || form.photo_url}
+                  alt={form.name || 'Hand'}
+                  className="h-28 w-28 flex-shrink-0 rounded-md object-cover"
+                />
+              ) : (
+                <div className="flex h-28 w-28 flex-shrink-0 items-center justify-center rounded-md bg-placeholder-tan-2">
+                  <span className="material-symbols-outlined text-[40px] text-ink-300">person</span>
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <label
+                  className={`flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-medium text-ink-600 ${
+                    photoProcessing ? 'cursor-wait opacity-50' : 'cursor-pointer active:bg-surface-canvas'
+                  }`}
+                >
+                  {photoProcessing
+                    ? 'Processing photo…'
+                    : form.photo_url || photoFile
+                      ? 'Replace'
+                      : 'Add photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    disabled={photoProcessing}
+                    className="hidden"
+                  />
+                </label>
+                {(photoFile || (form.photo_url && !removePhoto)) && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-medium text-ink-600 active:bg-surface-canvas"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <TextField
             label="Phone"
             type="tel"
