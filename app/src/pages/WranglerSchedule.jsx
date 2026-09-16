@@ -108,6 +108,7 @@ export default function WranglerSchedule() {
 
   const [viewingNotesFor, setViewingNotesFor] = useState(null)
   const [deletingAssignment, setDeletingAssignment] = useState(null)
+  const [scrollToIso, setScrollToIso] = useState(null)
 
   // Weekly print is one page per day (portrait); Monthly print keeps the
   // letter-landscape default set in index.css.
@@ -263,10 +264,23 @@ export default function WranglerSchedule() {
   }
 
   function goToWeekFor(date) {
+    const iso = isoDate(date)
     setWeekStart(startOfWeek(date))
-    setExpandedDays(new Set([isoDate(date)]))
+    setExpandedDays(new Set([iso]))
+    setScrollToIso(iso)
     setView('weekly')
   }
+
+  // Tapping a Monthly day should land the user on that day's card, not just
+  // the top of the week — scroll it into view once the Weekly list has
+  // rendered (data load finishes async, so this can't happen inline with
+  // goToWeekFor above).
+  useEffect(() => {
+    if (view !== 'weekly' || loading || !scrollToIso) return
+    const el = document.querySelector(`[data-day-iso="${scrollToIso}"]`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    setScrollToIso(null)
+  }, [view, loading, scrollToIso])
 
   function handleMonthlyDayClick(date) {
     goToWeekFor(date)
@@ -425,10 +439,16 @@ export default function WranglerSchedule() {
   }
 
   // Monthly cells are now a read-only summary — tapping one drills into the
-  // Weekly view for that day, where all editing happens.
+  // Weekly view for that day, where all editing happens. Grouped by time
+  // slot/activity (same grouping as Weekly) so the cell reads as "when, then
+  // who & on what" at a glance, with no other data (notes, source) cluttering
+  // it — the cell grows to fit its own day's list; CSS grid auto-sizes each
+  // week-row to its tallest cell, so a busy day doesn't clip, it just makes
+  // that whole row taller.
   function renderDay(date, inMonth) {
     const iso = isoDate(date)
     const assignments = effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
+    const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
     const isToday = iso === isoDate(today)
 
     return (
@@ -436,7 +456,7 @@ export default function WranglerSchedule() {
         role={inMonth ? 'button' : undefined}
         tabIndex={inMonth ? 0 : undefined}
         onClick={inMonth ? () => handleMonthlyDayClick(date) : undefined}
-        className={`flex min-h-[92px] flex-col gap-0.5 p-1 text-left ${inMonth ? 'cursor-pointer active:bg-surface-canvas' : ''}`}
+        className={`flex min-h-[92px] flex-col gap-1 p-1 text-left ${inMonth ? 'cursor-pointer active:bg-surface-canvas' : ''}`}
       >
         <div className="flex items-center justify-between">
           <span
@@ -458,12 +478,31 @@ export default function WranglerSchedule() {
           )}
         </div>
 
-        <div className="flex flex-col gap-0.5">
-          {assignments.map((assignment) => {
-            const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
+        <div className="flex flex-col gap-1.5">
+          {groups.map((group) => {
+            const slot = timeSlotsById[group.time_slot_id]
             return (
-              <div key={key} className="truncate rounded-sm bg-chip-bg px-1 py-0.5 text-2xs text-chip-fg">
-                {assignmentLabel(assignment)}
+              <div key={`${group.time_slot_id}-${group.activity}`} className="flex flex-col gap-0.5">
+                <div className="flex items-baseline justify-between gap-1 px-0.5">
+                  <span className="truncate text-2xs font-bold text-ink-600">{slot?.name ?? '—'}</span>
+                  <span className="flex-shrink-0 text-2xs font-semibold text-ink-400">
+                    {ACTIVITY_LABELS[group.activity]}
+                  </span>
+                </div>
+                {group.items.map((assignment) => {
+                  const wrangler = wranglersById[assignment.wrangler_id]
+                  const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
+                  const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between gap-1 rounded-sm bg-chip-bg px-1 py-0.5 text-2xs text-chip-fg"
+                    >
+                      <span className="truncate">{wranglerShortName(wrangler)}</span>
+                      <span className="flex-shrink-0">{horse?.name ?? '--'}</span>
+                    </div>
+                  )
+                })}
               </div>
             )
           })}
@@ -679,7 +718,7 @@ export default function WranglerSchedule() {
               const isToday = iso === isoDate(today)
 
               return (
-                <div key={iso} className="overflow-hidden rounded-md border border-border-card bg-white">
+                <div key={iso} data-day-iso={iso} className="overflow-hidden rounded-md border border-border-card bg-white">
                   <button
                     type="button"
                     onClick={() => toggleDayExpanded(iso)}
