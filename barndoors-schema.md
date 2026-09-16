@@ -21,7 +21,7 @@ _Last updated: reflects all decisions through Reports section._
 | id | manager/admin rows: matches their `auth.users.id`. Hand rows: a plain generated id — no login account required, see note below |
 | role | `manager` \| `hand` \| `admin` — `admin` has identical permissions to `manager`, it's just a separate category for technology admin vs. barn manager |
 | name | |
-| photo_url | |
+| photo_url | optional; uploaded via `HandForm.jsx`, stored in the `profile-photos` bucket under a `profiles/` prefix; shown as a 60×60 thumbnail on the Hands list (placeholder icon if unset), tap to open in a lightbox |
 | phone | |
 | email | visible to everyone (managers and hands) — tappable `mailto:` link on the Hands list |
 | emergency_contact | restricted — see visibility note below |
@@ -257,6 +257,7 @@ hand lockout).
 | birthdate | replaced `gender` in the form/list; stored as `date`, displayed `MM/DD/YYYY`; entry accepts typed dates in several formats (`9/10/2019`, `9-10-19`, `Sep 10 2019`) or a native date picker |
 | notes | free text, manager-filled |
 | no_photos | boolean, default `false`; when checked, a small icon shows next to this wrangler's name everywhere wranglers are listed (online schedule and printouts) |
+| photo_url | optional; uploaded via `WranglerForm.jsx`, stored in the `profile-photos` bucket under a `wranglers/` prefix; shown as a 60×60 thumbnail on the Wranglers list (placeholder icon if unset), tap to open in a lightbox |
 | status | `active` \| `archived` (soft delete) |
 
 ### `wrangler_time_slots`

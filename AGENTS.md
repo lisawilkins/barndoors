@@ -112,11 +112,21 @@ targets, minimal typing, and high legibility over density or cleverness.
   OAuth for calendar, when it is eventually built. When it's actually built, it belongs
   alongside `create-manager` under `supabase/functions/`, and this note should be updated.
 - **Photos:** online-only upload to Supabase Storage (`head-photos` bucket for animals,
-  `profile-photos` for people). No offline photo queue. **One current photo per head in
-  v1** — replace on upload, not a gallery (the `head_photos` table may hold multiple rows
-  later, but the app treats it as a single standing photo for now). Resize/compress in
-  the browser before upload (max 1200px long edge, JPEG ~70% quality) so phone-camera
-  files upload reliably on spotty barn Wi‑Fi/cell.
+  `profile-photos` for people — profiles and wranglers both, under `profiles/` and
+  `wranglers/` prefixes respectively). No offline photo queue. **One current photo per
+  person/head in v1** — replace on upload, not a gallery (`head_photos` may hold multiple
+  rows later, but the app treats it as a single standing photo for now; `profiles` and
+  `wranglers` just have a plain `photo_url` column each, since there's no future
+  multi-photo plan for people). Resize/compress in the browser before upload (max 1200px
+  long edge, JPEG ~70% quality, via `app/src/lib/optimizeImageForUpload.js`) so
+  phone-camera files upload reliably on spotty barn Wi‑Fi/cell. Photo is optional
+  everywhere it appears — a hand, admin, manager, or wrangler with no photo shows a
+  generic person-icon placeholder instead. Wherever a person/wrangler is listed (Hands
+  list, Wranglers list), the photo renders as a 60×60 thumbnail (`PhotoThumb`
+  component); tapping a real photo opens it full-size in a shared `PhotoLightbox`
+  (closes via its X button or by tapping the backdrop). Long names shrink to fit via
+  `FitText` rather than truncating, and metadata lines wrap to multiple lines rather
+  than truncating, so nothing in a list row gets silently cut off.
 - **Reports:** print-friendly browser views (`@media print` styling), fixed columns +
   filters, no custom column-picker in v1. A given report may also offer a plain CSV
   download alongside its printable view (built client-side with a `Blob` + temporary

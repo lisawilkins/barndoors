@@ -5,12 +5,16 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { formatPhone, telHref } from '../lib/formatPhone'
 import { isValidEmail } from '../lib/email'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
+import FitText from '../components/FitText'
 
 export default function Hands() {
   const { isManager, loading: authLoading } = useAuth()
   const [people, setPeople] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -24,8 +28,8 @@ export default function Hands() {
     // functions, since functions are the sanctioned way to intentionally
     // scope an RLS bypass.)
     const query = isManager
-      ? supabase.from('profiles').select('id, name, role, phone, email, status')
-      : supabase.rpc('profiles_hand_visible').select('id, name, role, phone, email, status')
+      ? supabase.from('profiles').select('id, name, role, phone, email, photo_url, status')
+      : supabase.rpc('profiles_hand_visible').select('id, name, role, phone, email, photo_url, status')
 
     query
       .eq('status', 'active')
@@ -99,30 +103,35 @@ export default function Hands() {
             {people.map((person) => (
               <li
                 key={person.id}
-                className="flex items-center justify-between gap-2 border-b border-border-hairline px-4 py-3 last:border-0"
+                className="flex items-center gap-3 border-b border-border-hairline px-4 py-3 last:border-0"
               >
+                <PhotoThumb photoUrl={person.photo_url} alt={person.name} onOpen={setLightboxPhoto} />
+
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   {(person.role === 'manager' || person.role === 'admin') && (
                     <span className="w-fit rounded-full bg-chip-bg px-2.5 py-0.5 text-xs font-semibold capitalize text-chip-fg">
                       {person.role}
                     </span>
                   )}
-                  <span className="text-xl font-semibold text-ink-900">{person.name}</span>
+                  <FitText text={person.name} />
                   {person.phone && (
-                    <a href={telHref(person.phone)} className="text-[15px] text-accent-bright active:opacity-70">
+                    <a
+                      href={telHref(person.phone)}
+                      className="break-words text-[15px] text-accent-bright active:opacity-70"
+                    >
                       {formatPhone(person.phone)}
                     </a>
                   )}
                   {person.email && isValidEmail(person.email) && (
                     <a
                       href={`mailto:${person.email}`}
-                      className="truncate text-[15px] text-accent-bright active:opacity-70"
+                      className="break-words text-[15px] text-accent-bright active:opacity-70"
                     >
                       {person.email}
                     </a>
                   )}
                   {person.email && !isValidEmail(person.email) && (
-                    <span className="truncate text-[15px] text-ink-600">{person.email}</span>
+                    <span className="break-words text-[15px] text-ink-600">{person.email}</span>
                   )}
                 </div>
 
@@ -140,6 +149,8 @@ export default function Hands() {
           </ul>
         )}
       </main>
+
+      <PhotoLightbox photo={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </div>
   )
 }

@@ -7,6 +7,9 @@ import { formatDateUS } from '../lib/formatDate'
 import { formatDays } from '../lib/turnoutSchedule'
 import { wranglerShortName } from '../lib/wranglerSchedule'
 import NoPhotosIcon from '../components/NoPhotosIcon'
+import PhotoThumb from '../components/PhotoThumb'
+import PhotoLightbox from '../components/PhotoLightbox'
+import FitText from '../components/FitText'
 
 export default function Wranglers() {
   const { isManager } = useAuth()
@@ -14,6 +17,7 @@ export default function Wranglers() {
   const [daysByWrangler, setDaysByWrangler] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [lightboxPhoto, setLightboxPhoto] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -22,7 +26,7 @@ export default function Wranglers() {
       const [wranglersResult, recurringResult, slotsResult] = await Promise.all([
         supabase
           .from('wranglers')
-          .select('id, first_name, last_initial, birthdate, no_photos')
+          .select('id, first_name, last_initial, birthdate, no_photos, photo_url')
           .eq('status', 'active')
           .order('first_name', { ascending: true }),
         supabase.from('wrangler_recurring_assignments').select('wrangler_id, time_slot_id'),
@@ -105,13 +109,19 @@ export default function Wranglers() {
             {wranglers.map((wrangler) => (
               <li
                 key={wrangler.id}
-                className="flex items-center justify-between gap-2 border-b border-border-hairline px-4 py-3 last:border-0"
+                className="flex items-center gap-3 border-b border-border-hairline px-4 py-3 last:border-0"
               >
+                <PhotoThumb
+                  photoUrl={wrangler.photo_url}
+                  alt={wranglerShortName(wrangler)}
+                  onOpen={setLightboxPhoto}
+                />
+
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="flex items-center gap-1.5 text-xl font-semibold text-ink-900">
-                    {wranglerShortName(wrangler)}
-                    {wrangler.no_photos && <NoPhotosIcon className="text-[16px]" />}
-                  </span>
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <FitText text={wranglerShortName(wrangler)} className="min-w-0 flex-1" />
+                    {wrangler.no_photos && <NoPhotosIcon className="flex-shrink-0 text-[16px]" />}
+                  </div>
                   <span className="text-[15px] text-ink-400">
                     {[
                       daysByWrangler[wrangler.id] ? formatDays([...daysByWrangler[wrangler.id]]) : null,
@@ -136,6 +146,8 @@ export default function Wranglers() {
           </ul>
         )}
       </main>
+
+      <PhotoLightbox photo={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
     </div>
   )
 }

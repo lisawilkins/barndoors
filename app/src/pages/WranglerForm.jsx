@@ -5,6 +5,7 @@ import { TextField, TextAreaField, SelectField, DateField } from '../components/
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { optimizeImageForUpload } from '../lib/optimizeImageForUpload'
 import { WEEKDAYS } from '../lib/turnoutSchedule'
 
 const BLANK = {
@@ -14,7 +15,14 @@ const BLANK = {
   birthdate: '',
   notes: '',
   no_photos: false,
+  photo_url: null,
   status: 'active',
+}
+
+function storagePathFromUrl(url) {
+  const marker = '/profile-photos/'
+  const index = url.indexOf(marker)
+  return index === -1 ? null : url.slice(index + marker.length)
 }
 
 function blankScheduleRow() {
@@ -36,6 +44,10 @@ export default function WranglerForm() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [confirmingArchive, setConfirmingArchive] = useState(false)
+  const [photoFile, setPhotoFile] = useState(null)
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('')
+  const [removePhoto, setRemovePhoto] = useState(false)
+  const [photoProcessing, setPhotoProcessing] = useState(false)
   const initialStatusRef = useRef('active')
 
   useEffect(() => {
@@ -48,7 +60,7 @@ export default function WranglerForm() {
         isEdit
           ? supabase
               .from('wranglers')
-              .select('first_name, last_initial, age, birthdate, notes, no_photos, status')
+              .select('first_name, last_initial, age, birthdate, notes, no_photos, photo_url, status')
               .eq('id', id)
               .single()
           : Promise.resolve({}),
@@ -84,6 +96,7 @@ export default function WranglerForm() {
             birthdate: wranglerResult.data.birthdate ?? '',
             notes: wranglerResult.data.notes ?? '',
             no_photos: wranglerResult.data.no_photos ?? false,
+            photo_url: wranglerResult.data.photo_url ?? null,
           })
           initialStatusRef.current = wranglerResult.data.status
         }
@@ -115,8 +128,44 @@ export default function WranglerForm() {
     }
   }, [id, isEdit])
 
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl)
+    }
+  }, [photoPreviewUrl])
+
   function update(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  async function handlePhotoChange(event) {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setPhotoProcessing(true)
+    try {
+      const optimized = await optimizeImageForUpload(file)
+      setPhotoPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current)
+        return URL.createObjectURL(optimized)
+      })
+      setPhotoFile(optimized)
+      setRemovePhoto(false)
+    } catch (photoError) {
+      setError(photoError.message || 'Could not process that image.')
+    } finally {
+      setPhotoProcessing(false)
+      event.target.value = ''
+    }
+  }
+
+  function handleRemovePhoto() {
+    setPhotoFile(null)
+    setPhotoPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current)
+      return ''
+    })
+    setRemovePhoto(true)
   }
 
   function updateScheduleRow(key, field, value) {
@@ -201,6 +250,48 @@ export default function WranglerForm() {
       wranglerId = inserted.id
     }
 
+    if (photoFile) {
+      const path = `wranglers/${wranglerId}/${Date.now()}.jpg`
+      const { error: uploadError } = await supabase.storage
+        .from('profile-photos')
+        .upload(path, photoFile, { upsert: true })
+
+      if (uploadError) {
+        setError(uploadError.message)
+        setSaving(false)
+        return
+      }
+
+      if (form.photo_url) {
+        const oldPath = storagePathFromUrl(form.photo_url)
+        if (oldPath) await supabase.storage.from('profile-photos').remove([oldPath])
+      }
+
+      const { data: publicUrlData } = supabase.storage.from('profile-photos').getPublicUrl(path)
+      const { error: photoSaveError } = await supabase
+        .from('wranglers')
+        .update({ photo_url: publicUrlData.publicUrl })
+        .eq('id', wranglerId)
+
+      if (photoSaveError) {
+        setError(photoSaveError.message)
+        setSaving(false)
+        return
+      }
+    } else if (removePhoto && form.photo_url) {
+      const oldPath = storagePathFromUrl(form.photo_url)
+      if (oldPath) await supabase.storage.from('profile-photos').remove([oldPath])
+      const { error: photoRemoveError } = await supabase
+        .from('wranglers')
+        .update({ photo_url: null })
+        .eq('id', wranglerId)
+      if (photoRemoveError) {
+        setError(photoRemoveError.message)
+        setSaving(false)
+        return
+      }
+    }
+
     const scheduleRequests = []
 
     for (const row of scheduleRows) {
@@ -277,6 +368,53 @@ export default function WranglerForm() {
               onChange={(event) => update('last_initial', event.target.value.slice(0, 1))}
             />
           </div>
+
+          <div className="flex flex-col gap-2">
+            <span className="text-xs font-semibold text-ink-400">Photo</span>
+            <div className="flex items-center gap-3">
+              {photoPreviewUrl || (form.photo_url && !removePhoto) ? (
+                <img
+                  src={photoPreviewUrl || form.photo_url}
+                  alt="Wrangler"
+                  className="h-28 w-28 flex-shrink-0 rounded-md object-cover"
+                />
+              ) : (
+                <div className="flex h-28 w-28 flex-shrink-0 items-center justify-center rounded-md bg-placeholder-tan-2">
+                  <span className="material-symbols-outlined text-[40px] text-ink-300">person</span>
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <label
+                  className={`flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-medium text-ink-600 ${
+                    photoProcessing ? 'cursor-wait opacity-50' : 'cursor-pointer active:bg-surface-canvas'
+                  }`}
+                >
+                  {photoProcessing
+                    ? 'Processing photo…'
+                    : form.photo_url || photoFile
+                      ? 'Replace'
+                      : 'Add photo'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    disabled={photoProcessing}
+                    className="hidden"
+                  />
+                </label>
+                {(photoFile || (form.photo_url && !removePhoto)) && (
+                  <button
+                    type="button"
+                    onClick={handleRemovePhoto}
+                    className="flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-medium text-ink-600 active:bg-surface-canvas"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="flex gap-3">
             <TextField
               label="Age"
