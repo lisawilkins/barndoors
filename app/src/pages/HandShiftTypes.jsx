@@ -74,7 +74,12 @@ export default function HandShiftTypes() {
     setSavingAdd(true)
     setAddError('')
 
-    const sortOrder = types.filter((type) => type.day_of_week === addForm.day).length
+    // One past the current max, not a count — a count collides with an
+    // existing sort_order once an earlier same-day type has been archived
+    // (e.g. archiving Mon AM(0) leaves only PM(1) active, so a plain count
+    // of 1 would tie with PM instead of landing after it).
+    const daySortOrders = types.filter((type) => type.day_of_week === addForm.day).map((type) => type.sort_order)
+    const sortOrder = daySortOrders.length === 0 ? 0 : Math.max(...daySortOrders) + 1
 
     const { error: insertError } = await supabase
       .from('hand_shift_types')

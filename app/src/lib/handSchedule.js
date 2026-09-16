@@ -4,6 +4,21 @@ function weekIndex(date) {
   return Math.floor(daysSinceEpoch(startOfWeek(date)) / 7)
 }
 
+// Minutes since midnight for a free-text event time like "8am", "10:30am",
+// "2:15pm" — null if it doesn't match one of those shapes, so callers can
+// fall back to a plain string comparison rather than breaking on unusual
+// input (event_time is free text, not a validated time field).
+function parseEventTimeMinutes(text) {
+  const match = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i.exec((text ?? '').trim())
+  if (!match) return null
+  let hours = Number(match[1])
+  const minutes = match[2] ? Number(match[2]) : 0
+  const meridiem = match[3]?.toLowerCase()
+  if (meridiem === 'pm' && hours < 12) hours += 12
+  if (meridiem === 'am' && hours === 12) hours = 0
+  return hours * 60 + minutes
+}
+
 // True if a recurring row's cadence includes `date`. Non-biweekly rows
 // always occur (the caller has already matched day-of-week). A biweekly row
 // occurs every other calendar week (Sun-Sat), counting from the week that
@@ -91,8 +106,14 @@ export function groupEffectiveShifts(shifts, shiftTypesById) {
       if (a.source === 'recurring') {
         const orderA = shiftTypesById[a.shift_type_id]?.sort_order ?? 0
         const orderB = shiftTypesById[b.shift_type_id]?.sort_order ?? 0
-        return orderA - orderB
+        if (orderA !== orderB) return orderA - orderB
+        const nameA = shiftTypesById[a.shift_type_id]?.name ?? ''
+        const nameB = shiftTypesById[b.shift_type_id]?.name ?? ''
+        return nameA.localeCompare(nameB)
       }
+      const minutesA = parseEventTimeMinutes(a.event_time)
+      const minutesB = parseEventTimeMinutes(b.event_time)
+      if (minutesA !== null && minutesB !== null) return minutesA - minutesB
       return (a.event_time ?? '').localeCompare(b.event_time ?? '')
     })
 }

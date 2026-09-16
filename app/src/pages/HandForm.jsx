@@ -49,13 +49,21 @@ export default function HandForm() {
   const [error, setError] = useState('')
   const [confirmingArchive, setConfirmingArchive] = useState(false)
   const initialStatusRef = useRef('active')
+  // Tracks a profile created by an earlier, partially-failed Save on this
+  // same /hands/new visit — id from useParams() never changes mid-session,
+  // so without this a retry after the profile insert succeeds but a later
+  // shift/vacation write fails would insert a second, orphaned profile row.
+  const createdProfileIdRef = useRef(null)
 
   useEffect(() => {
     let active = true
 
     async function load() {
       const [typesResult, profileResult, shiftsResult, vacationsResult] = await Promise.all([
-        supabase.from('hand_shift_types').select('id, name, day_of_week').eq('active', true).order('sort_order'),
+        // Not filtered to active — an existing row can reference an
+        // archived type, and it needs to resolve correctly (right day,
+        // visible in the Shift dropdown) rather than silently corrupt.
+        supabase.from('hand_shift_types').select('id, name, day_of_week, active').order('sort_order'),
         isEdit
           ? supabase.from('profiles').select('name, phone, email, role, status').eq('id', id).single()
           : Promise.resolve({ data: null }),
@@ -197,6 +205,11 @@ export default function HandForm() {
     }
 
     for (const row of shiftRows) {
+      if (row.biweekly && !row.shift_type_id) {
+        setError('Select a shift for the every-2-weeks row, or remove the row.')
+        setSaving(false)
+        return
+      }
       if (row.shift_type_id && row.biweekly && !row.biweekly_start_date) {
         setError('Enter a "Beginning on" date for the every-2-weeks shift, or uncheck it.')
         setSaving(false)
@@ -218,10 +231,14 @@ export default function HandForm() {
       }
     }
 
-    let profileId = id
+    const existingProfileId = id ?? createdProfileIdRef.current
+    let profileId = existingProfileId
 
-    if (isEdit) {
-      const { error: saveError } = await supabase.from('profiles').update({ name, phone, email, status }).eq('id', id)
+    if (existingProfileId) {
+      const { error: saveError } = await supabase
+        .from('profiles')
+        .update({ name, phone, email, status })
+        .eq('id', existingProfileId)
       if (saveError) {
         setError(saveError.message)
         setSaving(false)
@@ -239,10 +256,30 @@ export default function HandForm() {
         return
       }
       profileId = inserted.id
+      createdProfileIdRef.current = inserted.id
     }
 
     if (isSchedulable(form.role)) {
-      const requests = []
+      // Deletes run first and are awaited before any insert/update — a
+      // manager swapping a row for a new one on the same day+shift-type
+      // would otherwise race the new insert against the old row's delete
+      // and could spuriously trip hand_recurring_shifts' unique constraint.
+      const deleteRequests = [
+        ...removedShiftRowIds.map((rowId) => supabase.from('hand_recurring_shifts').delete().eq('id', rowId)),
+        ...removedVacationRowIds.map((rowId) => supabase.from('hand_vacations').delete().eq('id', rowId)),
+      ]
+
+      if (deleteRequests.length > 0) {
+        const deleteResults = await Promise.all(deleteRequests)
+        const deleteError = deleteResults.find((result) => result.error)
+        if (deleteError) {
+          setError(deleteError.error.message)
+          setSaving(false)
+          return
+        }
+      }
+
+      const upsertRequests = []
 
       for (const row of shiftRows) {
         if (!row.shift_type_id) continue
@@ -254,14 +291,11 @@ export default function HandForm() {
           updated_by: profile?.id ?? null,
           updated_at: new Date().toISOString(),
         }
-        requests.push(
+        upsertRequests.push(
           row.id
             ? supabase.from('hand_recurring_shifts').update(payload).eq('id', row.id)
             : supabase.from('hand_recurring_shifts').insert(payload),
         )
-      }
-      for (const rowId of removedShiftRowIds) {
-        requests.push(supabase.from('hand_recurring_shifts').delete().eq('id', rowId))
       }
 
       for (const row of vacationRows) {
@@ -273,22 +307,21 @@ export default function HandForm() {
           updated_by: profile?.id ?? null,
           updated_at: new Date().toISOString(),
         }
-        requests.push(
+        upsertRequests.push(
           row.id
             ? supabase.from('hand_vacations').update(payload).eq('id', row.id)
             : supabase.from('hand_vacations').insert(payload),
         )
       }
-      for (const rowId of removedVacationRowIds) {
-        requests.push(supabase.from('hand_vacations').delete().eq('id', rowId))
-      }
 
-      const results = await Promise.all(requests)
-      const firstError = results.find((result) => result.error)
-      if (firstError) {
-        setError(firstError.error.message)
-        setSaving(false)
-        return
+      if (upsertRequests.length > 0) {
+        const upsertResults = await Promise.all(upsertRequests)
+        const upsertError = upsertResults.find((result) => result.error)
+        if (upsertError) {
+          setError(upsertError.error.message)
+          setSaving(false)
+          return
+        }
       }
     }
 
@@ -360,7 +393,13 @@ export default function HandForm() {
               {shiftRows.length === 0 && <p className="text-[15px] text-ink-400">No recurring shifts yet.</p>}
 
               {shiftRows.map((row) => {
-                const dayTypes = shiftTypes.filter((type) => type.day_of_week === row.day)
+                // Active types for this day, plus the row's own current
+                // selection even if it's since been archived — an archived
+                // type must stay visible/selected on the row that already
+                // has it, just not offered for a fresh pick.
+                const dayTypes = shiftTypes.filter(
+                  (type) => type.day_of_week === row.day && (type.active || type.id === row.shift_type_id),
+                )
                 return (
                   <div
                     key={row.key}
@@ -391,6 +430,7 @@ export default function HandForm() {
                         {dayTypes.map((type) => (
                           <option key={type.id} value={type.id}>
                             {type.name}
+                            {!type.active ? ' (archived)' : ''}
                           </option>
                         ))}
                       </SelectField>
@@ -432,7 +472,7 @@ export default function HandForm() {
                 + Add recurring shift
               </button>
 
-              {shiftTypes.length === 0 && (
+              {shiftTypes.every((type) => !type.active) && (
                 <p className="text-sm text-ink-300">
                   No shift types configured yet.{' '}
                   <Link to="/hands/shift-types" className="underline">

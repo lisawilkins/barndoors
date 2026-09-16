@@ -54,6 +54,7 @@ export default function HandSchedule() {
   const [handFilter, setHandFilter] = useState('')
 
   const [deletingShift, setDeletingShift] = useState(null)
+  const [actionError, setActionError] = useState('')
   const [scrollToIso, setScrollToIso] = useState(null)
 
   const handsById = useMemo(() => Object.fromEntries(hands.map((h) => [h.id, h])), [hands])
@@ -99,7 +100,12 @@ export default function HandSchedule() {
 
       const [handsResult, typesResult, recurringResult, skipsResult, eventsResult, vacationsResult] = await Promise.all([
         supabase.from('profiles').select('id, name').in('role', SCHEDULABLE_ROLES).eq('status', 'active').order('name'),
-        supabase.from('hand_shift_types').select('id, name, day_of_week, sort_order').eq('active', true).order('sort_order'),
+        // Not filtered to active — an archived type must still resolve
+        // correctly for any existing recurring shift that references it
+        // (archiving retires it from new picks, it doesn't erase history).
+        // This page never offers a shift-type picker, so there's no
+        // active-only requirement to preserve here.
+        supabase.from('hand_shift_types').select('id, name, day_of_week, sort_order').order('sort_order'),
         supabase
           .from('hand_recurring_shifts')
           .select('id, profile_id, shift_type_id, biweekly, biweekly_start_date'),
@@ -294,6 +300,10 @@ export default function HandSchedule() {
     setSavingEvent(false)
 
     if (membersError) {
+      // Don't leave a member-less event behind — it would render nowhere
+      // (effectiveShiftsForDate expands events by member) and have no UI
+      // path to find or delete it.
+      await supabase.from('hand_shift_events').delete().eq('id', inserted.id)
       setEventError(membersError.message)
       return
     }
@@ -306,24 +316,38 @@ export default function HandSchedule() {
     if (!deletingShift) return
     const { shift, date } = deletingShift
 
+    let opError = null
+
     if (shift.source === 'recurring') {
-      await supabase
+      const { error: skipError } = await supabase
         .from('hand_recurring_shift_skips')
         .insert({ recurring_shift_id: shift.recurringShiftId, date: isoDate(date) })
+      opError = skipError
     } else {
-      await supabase
+      const { error: memberError } = await supabase
         .from('hand_shift_event_members')
         .delete()
         .eq('event_id', shift.eventId)
         .eq('profile_id', shift.profile_id)
+      opError = memberError
 
-      const event = events.find((e) => e.id === shift.eventId)
-      if (event && (event.members?.length ?? 0) <= 1) {
-        await supabase.from('hand_shift_events').delete().eq('id', shift.eventId)
+      if (!opError) {
+        // Check the live count, not local state — another manager could
+        // have changed this event's members in the meantime.
+        const { count, error: countError } = await supabase
+          .from('hand_shift_event_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_id', shift.eventId)
+        opError = countError
+        if (!opError && (count ?? 0) === 0) {
+          const { error: eventDeleteError } = await supabase.from('hand_shift_events').delete().eq('id', shift.eventId)
+          opError = eventDeleteError
+        }
       }
     }
 
     setDeletingShift(null)
+    setActionError(opError ? opError.message : '')
     reload()
   }
 
@@ -486,6 +510,7 @@ export default function HandSchedule() {
 
         {loading && <p className="text-[15px] text-ink-400">Loading…</p>}
         {error && <p className="text-[15px] text-red-600">{error}</p>}
+        {actionError && <p className="text-[15px] text-red-600">{actionError}</p>}
 
         {!loading && !error && view === 'monthly' && (
           <LandscapeContent>
