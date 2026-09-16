@@ -78,7 +78,7 @@ function HerdListItem({
             {...listeners}
             aria-label="Hold and drag to reorder"
             style={{ touchAction: 'pan-y' }}
-            className="flex w-10 flex-shrink-0 cursor-grab items-center justify-center text-ink-200 active:cursor-grabbing active:bg-surface-canvas"
+            className="flex w-10 flex-shrink-0 cursor-grab select-none items-center justify-center text-ink-200 [-webkit-touch-callout:none] active:cursor-grabbing active:bg-surface-canvas"
           >
             <GripIcon />
           </button>
