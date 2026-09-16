@@ -1,5 +1,15 @@
 import { isoDate, weekdayKey } from './calendarSchedule'
 
+// Hands and Admins can be scheduled (recurring shifts, one-off events,
+// vacations) — Admin is a technology-admin category layered on the same
+// permissions as Manager, but unlike Manager, an Admin can also be a working
+// staff member who needs a shift schedule. Managers are never schedulable.
+export const SCHEDULABLE_ROLES = ['hand', 'admin']
+
+export function isSchedulable(role) {
+  return SCHEDULABLE_ROLES.includes(role)
+}
+
 // Folds a recurring weekly pattern together with its per-date skips and any
 // one-off event members for that date. `source` lets the UI offer "skip
 // this one" only on recurring rows, and branch the remove flow differently

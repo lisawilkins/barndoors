@@ -15,7 +15,7 @@ import {
   weekdayDateLabel,
   weekRangeLabel,
 } from '../lib/calendarSchedule'
-import { effectiveShiftsForDate, groupEffectiveShifts, isOnVacation } from '../lib/handSchedule'
+import { effectiveShiftsForDate, groupEffectiveShifts, isOnVacation, SCHEDULABLE_ROLES } from '../lib/handSchedule'
 
 function blankEventForm() {
   return { title: '', event_time: '', notes: '', member_ids: [] }
@@ -98,7 +98,7 @@ export default function HandSchedule() {
       const endIso = isoDate(end)
 
       const [handsResult, typesResult, recurringResult, skipsResult, eventsResult, vacationsResult] = await Promise.all([
-        supabase.from('profiles').select('id, name').eq('role', 'hand').eq('status', 'active').order('name'),
+        supabase.from('profiles').select('id, name').in('role', SCHEDULABLE_ROLES).eq('status', 'active').order('name'),
         supabase.from('hand_shift_types').select('id, name, day_of_week, sort_order').eq('active', true).order('sort_order'),
         supabase.from('hand_recurring_shifts').select('id, profile_id, shift_type_id'),
         supabase.from('hand_recurring_shift_skips').select('id, recurring_shift_id, date'),

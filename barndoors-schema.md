@@ -333,11 +333,15 @@ union any `wrangler_assignments` rows for that exact date.
 ## Part 5 — Hand Scheduling
 
 Hands are `profiles` rows with `role = 'hand'` — there is no separate `hands` table (unlike
-Wranglers, which have their own `wranglers` table). Every table below FKs to `profiles(id)`
-the same way Wrangler scheduling tables FK to `wranglers(id)`, and follows the same
-visibility rule as every other roster/schedule table (`apply_standard_policies()` — hands
-read, managers/admins write). `profiles` itself keeps its own bespoke, field-hiding RLS (see
-Part 3) — these new tables don't touch that.
+Wranglers, which have their own `wranglers` table). **`role = 'admin'` profiles are
+schedulable the same way** (an admin can also be a working staff member); `role = 'manager'`
+profiles are not. This is purely a scheduling-eligibility rule, gated by the single
+`isSchedulable()` helper in `app/src/lib/handSchedule.js` — it has no bearing on
+read/write permissions, where admin and manager stay identical (see Part 3). Every table
+below FKs to `profiles(id)` the same way Wrangler scheduling tables FK to `wranglers(id)`,
+and follows the same visibility rule as every other roster/schedule table
+(`apply_standard_policies()` — hands read, managers/admins write). `profiles` itself keeps
+its own bespoke, field-hiding RLS (see Part 3) — these new tables don't touch that.
 
 ### `hand_shift_types`
 Predefined, manager-extensible list, same shape and same day-specific reasoning as

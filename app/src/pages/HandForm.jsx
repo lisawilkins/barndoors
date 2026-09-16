@@ -7,6 +7,7 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { sanitizeEmail, isValidEmail } from '../lib/email'
 import { WEEKDAYS } from '../lib/turnoutSchedule'
+import { isSchedulable } from '../lib/handSchedule'
 
 const BLANK = { name: '', phone: '', email: '', role: 'hand', status: 'active' }
 
@@ -28,9 +29,9 @@ function blankVacationRow() {
 // with no way to sign in, or a "hand" row that's actually still a live
 // manager login.
 //
-// Recurring Shifts and Vacations are Hand-only concepts (scheduling doesn't
-// apply to managers/admins), so both sections only render when
-// form.role === 'hand'.
+// Recurring Shifts and Vacations apply to anyone schedulable — Hands and
+// Admins, per isSchedulable() — but never Managers, so both sections only
+// render for those roles.
 export default function HandForm() {
   const { id } = useParams()
   const isEdit = Boolean(id)
@@ -226,7 +227,7 @@ export default function HandForm() {
       profileId = inserted.id
     }
 
-    if (form.role === 'hand') {
+    if (isSchedulable(form.role)) {
       const requests = []
 
       for (const row of shiftRows) {
@@ -336,7 +337,7 @@ export default function HandForm() {
             <option value="inactive">Inactive</option>
           </SelectField>
 
-          {form.role === 'hand' && (
+          {isSchedulable(form.role) && (
             <div className="flex flex-col gap-3 border-t border-border-hairline pt-3">
               <span className="text-xs font-semibold text-ink-400">Recurring shifts</span>
 
@@ -408,7 +409,7 @@ export default function HandForm() {
             </div>
           )}
 
-          {form.role === 'hand' && (
+          {isSchedulable(form.role) && (
             <div className="flex flex-col gap-3 border-t border-border-hairline pt-3">
               <span className="text-xs font-semibold text-ink-400">Vacations</span>
 

@@ -214,7 +214,14 @@ baked into it that should not be silently changed:
 - **Hands scheduling mirrors the Wrangler pattern, with no activity/horse concept.**
   `profiles` rows with `role = 'hand'` are the schedulable entity (there's no separate
   `hands` table, unlike `wranglers`) — every scheduling table below FKs to `profiles(id)`,
-  exactly the way Wrangler tables FK to `wranglers(id)`. **Shift types are day-specific**
+  exactly the way Wrangler tables FK to `wranglers(id)`. **`role = 'admin'` profiles are
+  schedulable too, `role = 'manager'` profiles are not** — `isSchedulable()`
+  (`app/src/lib/handSchedule.js`) is the single place this rule lives, used by both
+  `HandForm.jsx` (which sections render) and `HandSchedule.jsx` (who's eligible to be
+  assigned). This is a *scheduling* distinction only, not a permissions one — admin and
+  manager remain permission-identical everywhere else (see "Roles & permissions"); an admin
+  can simply also be a working staff member the way a hand is, while a manager can't. **Shift
+  types are day-specific**
   (`hand_shift_types.day_of_week` — "Sun AM" and "Mon AM" are different rows), managed on
   their own page (`/hands/shift-types`), not inline on a hand's profile. A default set of
   14 rows (AM and PM × every day of the week) ships as data in the same migration that
