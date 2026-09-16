@@ -800,13 +800,15 @@ export default function WranglerSchedule() {
                               const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
                               return (
                                 <div key={key} className="flex items-center justify-between gap-2 py-0.5">
-                                  <span className="flex min-w-0 items-center gap-1 truncate text-[15px] text-ink-900">
-                                    <span className="truncate">
+                                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                                    <span className="w-28 flex-shrink-0 truncate text-[15px] text-ink-900">
                                       {wranglerShortName(wrangler)}
-                                      {horse ? ` · ${horse.name}` : ''}
+                                    </span>
+                                    <span className="min-w-0 flex-1 truncate text-[15px] text-ink-600">
+                                      {horse?.name ?? ''}
                                     </span>
                                     {wrangler?.no_photos && <NoPhotosIcon />}
-                                  </span>
+                                  </div>
                                   <div className="flex flex-shrink-0 items-center gap-1">
                                     {wrangler?.notes && (
                                       <button
