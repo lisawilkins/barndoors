@@ -256,6 +256,7 @@ hand lockout).
 | gender | deprecated — no longer shown or collected in the app; existing values are kept, not dropped, same precedent as `head.tag_id` |
 | birthdate | replaced `gender` in the form/list; stored as `date`, displayed `MM/DD/YYYY`; entry accepts typed dates in several formats (`9/10/2019`, `9-10-19`, `Sep 10 2019`) or a native date picker |
 | notes | free text, manager-filled |
+| no_photos | boolean, default `false`; when checked, a small icon shows next to this wrangler's name everywhere wranglers are listed (online schedule and printouts) |
 | status | `active` \| `archived` (soft delete) |
 
 ### `wrangler_time_slots`

@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient'
 import { formatDateUS } from '../lib/formatDate'
 import { formatDays } from '../lib/turnoutSchedule'
 import { wranglerShortName } from '../lib/wranglerSchedule'
+import NoPhotosIcon from '../components/NoPhotosIcon'
 
 export default function Wranglers() {
   const { isManager } = useAuth()
@@ -21,7 +22,7 @@ export default function Wranglers() {
       const [wranglersResult, recurringResult, slotsResult] = await Promise.all([
         supabase
           .from('wranglers')
-          .select('id, first_name, last_initial, birthdate')
+          .select('id, first_name, last_initial, birthdate, no_photos')
           .eq('status', 'active')
           .order('first_name', { ascending: true }),
         supabase.from('wrangler_recurring_assignments').select('wrangler_id, time_slot_id'),
@@ -107,8 +108,9 @@ export default function Wranglers() {
                 className="flex items-center justify-between gap-2 border-b border-border-hairline px-4 py-3 last:border-0"
               >
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="text-xl font-semibold text-ink-900">
+                  <span className="flex items-center gap-1.5 text-xl font-semibold text-ink-900">
                     {wranglerShortName(wrangler)}
+                    {wrangler.no_photos && <NoPhotosIcon className="text-[16px]" />}
                   </span>
                   <span className="text-[15px] text-ink-400">
                     {[
