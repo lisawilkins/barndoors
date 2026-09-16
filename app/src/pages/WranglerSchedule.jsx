@@ -255,12 +255,19 @@ export default function WranglerSchedule() {
     setWeekStart(startOfWeek(base))
     setExpandedDays(new Set())
     setView('weekly')
+    window.scrollTo({ top: 0 })
   }
 
   function switchToMonthly() {
-    setYear(weekStart.getFullYear())
-    setMonth(weekStart.getMonth())
+    // weekStart is always a Sunday, which can land in the previous month from
+    // most of the days actually on screen (e.g. tapping Sep 1 sets weekStart
+    // to Aug 30) — anchor on the week's Wednesday instead so this lands on
+    // whichever month owns most of the visible week, not just its first day.
+    const monthAnchor = addDays(weekStart, 3)
+    setYear(monthAnchor.getFullYear())
+    setMonth(monthAnchor.getMonth())
     setView('monthly')
+    window.scrollTo({ top: 0 })
   }
 
   function goToWeekFor(date) {
