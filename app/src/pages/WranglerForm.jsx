@@ -7,7 +7,15 @@ import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { WEEKDAYS } from '../lib/turnoutSchedule'
 
-const BLANK = { first_name: '', last_initial: '', age: '', birthdate: '', notes: '', status: 'active' }
+const BLANK = {
+  first_name: '',
+  last_initial: '',
+  age: '',
+  birthdate: '',
+  notes: '',
+  no_photos: false,
+  status: 'active',
+}
 
 function blankScheduleRow() {
   return { key: crypto.randomUUID(), id: null, day: 'mon', time_slot_id: '', activity: 'working', horse_id: '' }
@@ -40,7 +48,7 @@ export default function WranglerForm() {
         isEdit
           ? supabase
               .from('wranglers')
-              .select('first_name, last_initial, age, birthdate, notes, status')
+              .select('first_name, last_initial, age, birthdate, notes, no_photos, status')
               .eq('id', id)
               .single()
           : Promise.resolve({}),
@@ -75,6 +83,7 @@ export default function WranglerForm() {
             age: wranglerResult.data.age ?? '',
             birthdate: wranglerResult.data.birthdate ?? '',
             notes: wranglerResult.data.notes ?? '',
+            no_photos: wranglerResult.data.no_photos ?? false,
           })
           initialStatusRef.current = wranglerResult.data.status
         }
@@ -157,6 +166,7 @@ export default function WranglerForm() {
       age: form.age === '' ? null : Number(form.age),
       birthdate: form.birthdate || null,
       notes: form.notes.trim() || null,
+      no_photos: form.no_photos,
       status: form.status,
       updated_by: profile?.id ?? null,
       updated_at: new Date().toISOString(),
@@ -288,6 +298,15 @@ export default function WranglerForm() {
             value={form.notes}
             onChange={(event) => update('notes', event.target.value)}
           />
+
+          <label className="flex items-center gap-2 text-[15px] text-ink-900">
+            <input
+              type="checkbox"
+              checked={form.no_photos}
+              onChange={(event) => update('no_photos', event.target.checked)}
+            />
+            No photos
+          </label>
 
           <div className="flex flex-col gap-3 border-t border-border-hairline pt-3">
             <span className="text-xs font-semibold text-ink-400">Schedule</span>

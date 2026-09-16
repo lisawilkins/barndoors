@@ -4,6 +4,7 @@ import TopNav from '../components/TopNav'
 import MonthCalendar from '../components/MonthCalendar'
 import LandscapeContent from '../components/LandscapeContent'
 import ConfirmDialog from '../components/ConfirmDialog'
+import NoPhotosIcon from '../components/NoPhotosIcon'
 import { TextAreaField, SelectField } from '../components/FormField'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
@@ -165,7 +166,7 @@ export default function WranglerSchedule() {
       ] = await Promise.all([
         supabase
           .from('wranglers')
-          .select('id, first_name, last_initial, notes')
+          .select('id, first_name, last_initial, notes, no_photos')
           .eq('status', 'active')
           .order('first_name'),
         supabase
@@ -505,7 +506,10 @@ export default function WranglerSchedule() {
                       key={key}
                       className="flex items-center justify-between gap-1 rounded-sm bg-chip-bg px-1 py-0.5 text-2xs text-chip-fg"
                     >
-                      <span className="truncate">{wranglerShortName(wrangler)}</span>
+                      <span className="flex min-w-0 items-center gap-0.5 truncate">
+                        <span className="truncate">{wranglerShortName(wrangler)}</span>
+                        {wrangler?.no_photos && <NoPhotosIcon className="text-[11px]" />}
+                      </span>
                       <span className="flex-shrink-0">{horse?.name ?? '--'}</span>
                     </div>
                   )
@@ -578,8 +582,13 @@ export default function WranglerSchedule() {
                     <span className="w-28 flex-shrink-0 text-gray-900">{wranglerShortName(wrangler)}</span>
                     <span className="w-20 flex-shrink-0 text-gray-900">{horse?.name ?? '--'}</span>
                     <span className="flex flex-1 gap-1 text-gray-600">
-                      {/* fixed-width gutter reserved for an upcoming "no photos" flag on wranglers */}
-                      <span className="w-4 flex-shrink-0" />
+                      <span className="w-4 flex-shrink-0">
+                        {wrangler?.no_photos && (
+                          <span className="material-symbols-outlined text-[14px] text-gray-600" title="No photos">
+                            no_photography
+                          </span>
+                        )}
+                      </span>
                       <span>{wrangler?.notes || '--'}</span>
                     </span>
                   </div>
@@ -791,9 +800,12 @@ export default function WranglerSchedule() {
                               const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
                               return (
                                 <div key={key} className="flex items-center justify-between gap-2 py-0.5">
-                                  <span className="min-w-0 truncate text-[15px] text-ink-900">
-                                    {wranglerShortName(wrangler)}
-                                    {horse ? ` · ${horse.name}` : ''}
+                                  <span className="flex min-w-0 items-center gap-1 truncate text-[15px] text-ink-900">
+                                    <span className="truncate">
+                                      {wranglerShortName(wrangler)}
+                                      {horse ? ` · ${horse.name}` : ''}
+                                    </span>
+                                    {wrangler?.no_photos && <NoPhotosIcon />}
                                   </span>
                                   <div className="flex flex-shrink-0 items-center gap-1">
                                     {wrangler?.notes && (
@@ -1069,7 +1081,10 @@ export default function WranglerSchedule() {
             className="flex w-full max-w-sm flex-col gap-3 rounded-md bg-white p-5 shadow-card"
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="font-display text-xl font-semibold text-ink-900">{wranglerShortName(viewingNotesFor)}</h2>
+              <h2 className="flex items-center gap-1.5 font-display text-xl font-semibold text-ink-900">
+                {wranglerShortName(viewingNotesFor)}
+                {viewingNotesFor?.no_photos && <NoPhotosIcon className="text-[18px]" />}
+              </h2>
               {isManager && (
                 <Link
                   to={`/wranglers/${viewingNotesFor.id}`}
