@@ -8,15 +8,17 @@ function blankAddForm() {
   return { day: 'mon', name: '' }
 }
 
-// Time slots are day-specific ("Mon 5:30–6:30 PM"), managed here rather than
-// inline on a wrangler's profile — one manager-facing list grouped by day,
-// so it reads the way a manager would actually think about it ("what times
-// do we offer on Monday?"). Adding is one action for the whole page (pick a
-// day + a time), not a separate add row per day; editing an existing slot
-// (renaming it, or archiving it so it stops appearing on future days) goes
-// through a popup reached via the row's edit icon.
-export default function WranglerTimeSlots() {
-  const [slots, setSlots] = useState([])
+// Shift types are day-specific ("Mon AM"), managed here rather than inline
+// on a hand's profile — one manager-facing list grouped by day, so it reads
+// the way a manager would actually think about it ("what shifts do we run
+// on Monday?"). A default set of 14 (AM + PM x every day) ships with the
+// migration, so this page starts populated; managers can add more the same
+// way Wrangler time slots work. Adding is one action for the whole page
+// (pick a day + a name), not a separate add row per day; editing an
+// existing type (renaming it, or archiving it so it stops appearing on
+// future days) goes through a popup reached via the row's edit icon.
+export default function HandShiftTypes() {
+  const [types, setTypes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -24,7 +26,7 @@ export default function WranglerTimeSlots() {
   const [savingAdd, setSavingAdd] = useState(false)
   const [addError, setAddError] = useState('')
 
-  const [editingSlot, setEditingSlot] = useState(null)
+  const [editingType, setEditingType] = useState(null)
   const [editNameDraft, setEditNameDraft] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState('')
@@ -34,7 +36,7 @@ export default function WranglerTimeSlots() {
     setError('')
 
     const { data, error: fetchError } = await supabase
-      .from('wrangler_time_slots')
+      .from('hand_shift_types')
       .select('id, name, day_of_week, sort_order, active')
       .eq('active', true)
       .order('sort_order')
@@ -42,7 +44,7 @@ export default function WranglerTimeSlots() {
     if (fetchError) {
       setError(fetchError.message)
     } else {
-      setSlots(data ?? [])
+      setTypes(data ?? [])
     }
     setLoading(false)
   }
@@ -61,11 +63,11 @@ export default function WranglerTimeSlots() {
     setAddError('')
   }
 
-  async function handleAddSlot(event) {
+  async function handleAddType(event) {
     event.preventDefault()
     const name = addForm.name.trim()
     if (!name) {
-      setAddError('Enter a time.')
+      setAddError('Enter a name.')
       return
     }
 
@@ -73,14 +75,14 @@ export default function WranglerTimeSlots() {
     setAddError('')
 
     // One past the current max, not a count — a count collides with an
-    // existing sort_order once an earlier same-day slot has been archived
-    // (e.g. archiving Mon 5:30-6:30(0) leaves only 7:00-8:00(1) active, so a
-    // plain count of 1 would tie with it instead of landing after it).
-    const daySortOrders = slots.filter((slot) => slot.day_of_week === addForm.day).map((slot) => slot.sort_order)
+    // existing sort_order once an earlier same-day type has been archived
+    // (e.g. archiving Mon AM(0) leaves only PM(1) active, so a plain count
+    // of 1 would tie with PM instead of landing after it).
+    const daySortOrders = types.filter((type) => type.day_of_week === addForm.day).map((type) => type.sort_order)
     const sortOrder = daySortOrders.length === 0 ? 0 : Math.max(...daySortOrders) + 1
 
     const { error: insertError } = await supabase
-      .from('wrangler_time_slots')
+      .from('hand_shift_types')
       .insert({ name, day_of_week: addForm.day, sort_order: sortOrder })
 
     setSavingAdd(false)
@@ -94,31 +96,28 @@ export default function WranglerTimeSlots() {
     load()
   }
 
-  function openEditModal(slot) {
-    setEditingSlot(slot)
-    setEditNameDraft(slot.name)
+  function openEditModal(type) {
+    setEditingType(type)
+    setEditNameDraft(type.name)
     setEditError('')
   }
 
   function closeEditModal() {
-    setEditingSlot(null)
+    setEditingType(null)
     setEditError('')
   }
 
   async function handleSaveEditedName() {
     const name = editNameDraft.trim()
     if (!name) {
-      setEditError('Enter a time.')
+      setEditError('Enter a name.')
       return
     }
 
     setSavingEdit(true)
     setEditError('')
 
-    const { error: updateError } = await supabase
-      .from('wrangler_time_slots')
-      .update({ name })
-      .eq('id', editingSlot.id)
+    const { error: updateError } = await supabase.from('hand_shift_types').update({ name }).eq('id', editingType.id)
 
     setSavingEdit(false)
 
@@ -136,9 +135,9 @@ export default function WranglerTimeSlots() {
     setEditError('')
 
     const { error: updateError } = await supabase
-      .from('wrangler_time_slots')
+      .from('hand_shift_types')
       .update({ active: false })
-      .eq('id', editingSlot.id)
+      .eq('id', editingType.id)
 
     setSavingEdit(false)
 
@@ -153,15 +152,15 @@ export default function WranglerTimeSlots() {
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-canvas">
-      <TopNav backTo="/wranglers" backLabel="Wranglers" />
+      <TopNav backTo="/hands" backLabel="Hands" />
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between">
-          <h1 className="font-display text-3xl font-light text-ink-900">Time slots</h1>
+          <h1 className="font-display text-3xl font-light text-ink-900">Shift types</h1>
           <button
             type="button"
             onClick={openAddModal}
-            aria-label="Add a time slot"
+            aria-label="Add a shift type"
             className="material-symbols-outlined text-[24px] text-ink-600 active:text-accent-bright"
           >
             add
@@ -174,25 +173,25 @@ export default function WranglerTimeSlots() {
         {!loading && (
           <div className="flex flex-col gap-3">
             {WEEKDAYS.map((day) => {
-              const daySlots = slots.filter((slot) => slot.day_of_week === day.value)
+              const dayTypes = types.filter((type) => type.day_of_week === day.value)
               return (
                 <div key={day.value} className="flex flex-col gap-2 rounded-md border border-border-card bg-white p-3.5">
                   <span className="text-[15px] font-bold text-ink-900">{day.label}</span>
 
-                  {daySlots.length === 0 && <p className="text-sm text-ink-300">No time slots yet.</p>}
+                  {dayTypes.length === 0 && <p className="text-sm text-ink-300">No shift types yet.</p>}
 
-                  {daySlots.length > 0 && (
+                  {dayTypes.length > 0 && (
                     <ul className="flex flex-col">
-                      {daySlots.map((slot) => (
+                      {dayTypes.map((type) => (
                         <li
-                          key={slot.id}
+                          key={type.id}
                           className="flex items-center justify-between gap-3 border-b border-border-hairline py-2 last:border-0"
                         >
-                          <span className="text-[15px] font-medium text-ink-900">{slot.name}</span>
+                          <span className="text-[15px] font-medium text-ink-900">{type.name}</span>
                           <button
                             type="button"
-                            onClick={() => openEditModal(slot)}
-                            aria-label={`Edit ${slot.name}`}
+                            onClick={() => openEditModal(type)}
+                            aria-label={`Edit ${type.name}`}
                             className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-ink-400 active:bg-surface-canvas"
                           >
                             <span className="material-symbols-outlined text-[18px]">edit</span>
@@ -220,9 +219,9 @@ export default function WranglerTimeSlots() {
             onClick={(event) => event.stopPropagation()}
             className="flex w-full max-w-sm flex-col gap-3 rounded-md bg-white p-5 shadow-card"
           >
-            <h2 className="font-display text-xl font-semibold text-ink-900">Add a time slot</h2>
+            <h2 className="font-display text-xl font-semibold text-ink-900">Add a shift type</h2>
 
-            <form onSubmit={handleAddSlot} className="flex flex-col gap-3">
+            <form onSubmit={handleAddType} className="flex flex-col gap-3">
               <SelectField
                 label="Day"
                 value={addForm.day}
@@ -236,10 +235,10 @@ export default function WranglerTimeSlots() {
               </SelectField>
 
               <TextField
-                label="Time"
+                label="Name"
                 required
                 autoFocus
-                placeholder="e.g. 5:30–6:30 PM"
+                placeholder="e.g. AM, PM, or Overnight"
                 value={addForm.name}
                 onChange={(event) => setAddForm((current) => ({ ...current, name: event.target.value }))}
               />
@@ -267,7 +266,7 @@ export default function WranglerTimeSlots() {
         </div>
       )}
 
-      {editingSlot && (
+      {editingType && (
         <div
           role="presentation"
           onClick={closeEditModal}
@@ -280,11 +279,11 @@ export default function WranglerTimeSlots() {
             className="flex w-full max-w-sm flex-col gap-3 rounded-md bg-white p-5 shadow-card"
           >
             <h2 className="font-display text-xl font-semibold text-ink-900">
-              Edit {WEEKDAYS.find((day) => day.value === editingSlot.day_of_week)?.label} slot
+              Edit {WEEKDAYS.find((day) => day.value === editingType.day_of_week)?.label} shift type
             </h2>
 
-            <TextField label="Time" value={editNameDraft} onChange={(event) => setEditNameDraft(event.target.value)} />
-            <p className="text-sm text-ink-400">Changing the time updates it everywhere it's used, going forward.</p>
+            <TextField label="Name" value={editNameDraft} onChange={(event) => setEditNameDraft(event.target.value)} />
+            <p className="text-sm text-ink-400">Changing the name updates it everywhere it's used, going forward.</p>
 
             {editError && <p className="text-[15px] text-red-600">{editError}</p>}
 

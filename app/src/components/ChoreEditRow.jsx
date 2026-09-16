@@ -83,7 +83,7 @@ export default function ChoreEditRow({
           // 44pt hit area around a 12pt glyph, per the design's control spec.
           // pan-y keeps a thumb-drag that starts here scrolling the page.
           style={{ touchAction: 'pan-y' }}
-          className={`flex min-h-11 w-5 flex-shrink-0 cursor-grab items-center justify-center active:cursor-grabbing ${HANDLE_COLOR[node.depth]}`}
+          className={`flex min-h-11 w-5 flex-shrink-0 cursor-grab select-none items-center justify-center [-webkit-touch-callout:none] active:cursor-grabbing ${HANDLE_COLOR[node.depth]}`}
         >
           <GripIcon />
         </button>

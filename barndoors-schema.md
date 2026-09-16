@@ -26,7 +26,7 @@ _Last updated: reflects all decisions through Reports section._
 | email | visible to everyone (managers and hands) — tappable `mailto:` link on the Hands list |
 | emergency_contact | restricted — see visibility note below |
 | status | `active` \| `inactive` (soft delete) |
-| calendar_feed_token | long random string, powers the subscribable `.ics` feed URL; regeneratable if compromised |
+| calendar_feed_token | long random string, generated for every profile; intended to power a subscribable `.ics` feed URL, but that feed is **not built yet** (no Edge Function reads it) — see AGENTS.md "Calendar" |
 
 **Auth model:** managers and admins each have an individual Supabase Auth account (email + password) and sign in individually (same "Manager" button on `/login` — admin isn't a separate login path). Hands do not — everyone signs in as a hand through one shared Supabase Auth account gated by a single universal password (see AGENTS.md "Auth"). Because of this, `profiles.id` is **not** foreign-keyed to `auth.users.id` — a manager/admin row happens to match their real auth id, but a hand's row is just a manager-managed person record (used for shift scheduling, chore assignment, and reports) with no auth account behind it at all.
 
@@ -34,17 +34,18 @@ _Last updated: reflects all decisions through Reports section._
 
 **Implementation:** `profiles_hand_visible()` is a `SECURITY DEFINER` Postgres function that exposes all columns except `emergency_contact` (always nulled). Hands query this function; managers query `profiles` directly. Do not attempt this restriction in app code alone — enforce at the database layer.
 
-### `shifts`
-| Field | Notes |
-|---|---|
-| id | |
-| profile_id | FK → profiles |
-| date | |
-| period | `AM` \| `PM` (no specific hours — just early/late designation) |
-| recurrence | `none` \| `daily` \| `weekly` \| `monthly` |
-| recurrence_end_date | nullable |
+### ~~`shifts`~~ — dropped
 
-**Calendar access:** hands view schedule via an in-app calendar tab, can subscribe to their personal feed URL (via `calendar_feed_token`), and/or download a one-time `.ics` file. No OAuth / Google or Apple Calendar API integration required.
+Superseded by **Part 5 — Hand Scheduling** below. The table was dead scaffolding —
+`profile_id`/`date`/`period`/`recurrence`/`recurrence_end_date` with zero frontend
+references and no `.ics` Edge Function ever built against it — dropped in the same
+migration (`20260916100000_add_hand_scheduling.sql`) that added the real Hand scheduling
+tables.
+
+**Calendar access today:** hands view their schedule via `/hands/schedule`, an in-app view
+only (mirrors `/wranglers/schedule`). A subscribable feed URL (`calendar_feed_token`, still
+a column on `profiles`) and one-time `.ics` download are **planned, not built** — see
+AGENTS.md "Calendar."
 
 **Parked for later (no schema impact yet):** building/structure maintenance tracking — owner/viewer role not yet decided.
 
@@ -329,6 +330,123 @@ union any `wrangler_assignments` rows for that exact date.
 
 ---
 
+## Part 5 — Hand Scheduling
+
+Hands are `profiles` rows with `role = 'hand'` — there is no separate `hands` table (unlike
+Wranglers, which have their own `wranglers` table). **`role = 'admin'` profiles are
+schedulable the same way** (an admin can also be a working staff member); `role = 'manager'`
+profiles are not. This is purely a scheduling-eligibility rule, gated by the single
+`isSchedulable()` helper in `app/src/lib/handSchedule.js` — it has no bearing on
+read/write permissions, where admin and manager stay identical (see Part 3). Every table
+below FKs to `profiles(id)` the same way Wrangler scheduling tables FK to `wranglers(id)`,
+and follows the same visibility rule as every other roster/schedule table
+(`apply_standard_policies()` — hands read, managers/admins write). `profiles` itself keeps
+its own bespoke, field-hiding RLS (see Part 3) — these new tables don't touch that.
+
+### `hand_shift_types`
+Predefined, manager-extensible list, same shape and same day-specific reasoning as
+`wrangler_time_slots`: "Sun AM" and "Mon AM" are different rows even though both might be
+named "AM", since a shift type's own day is what makes assigning a hand to it a *recurring
+weekly* shift. Managed on its own page (`/hands/shift-types`), not inline on a hand's
+profile.
+| Field | Notes |
+|---|---|
+| id | |
+| name | e.g. "AM", "PM", or a free-text slot like a Wrangler time (managers can add more beyond the defaults) |
+| day_of_week | `mon`–`sun` |
+| sort_order | AM = 0, PM = 1 for each default day, so AM always lists before PM |
+| active | `unique (day_of_week, name) where active` — archived types keep their name without blocking a new active one from reusing it |
+
+**Default rows:** 14 rows (AM + PM × every day, Sun–Sat) ship as `insert` statements inside
+the same migration that creates the table — not `supabase/seed.sql`, since `seed.sql` only
+loads on a local `supabase db reset`, never on the `supabase db push` this project actually
+uses to deploy to the linked remote project.
+
+### `hand_recurring_shifts`
+The standing weekly (or every-other-week) pattern (e.g. "Anne works every Monday AM").
+Built directly on a hand's own profile (`HandForm.jsx`): pick a day, pick a shift type for
+that day. Since `shift_type_id` already carries a day (via `hand_shift_types.day_of_week`),
+the shift itself needs no separate day column — one row per (hand, shift type) is the whole
+standing pattern.
+| Field | Notes |
+|---|---|
+| id | |
+| profile_id | FK → profiles, on delete cascade |
+| shift_type_id | FK → hand_shift_types, on delete restrict — its `day_of_week` is this shift's day |
+| biweekly | boolean, default `false` — when true, the shift occurs every other calendar week instead of every week |
+| biweekly_start_date | nullable date; required when `biweekly` is true (check constraint). The "Beginning on" date a manager picks — anchors which calendar week (Sun–Sat) is the first "on" week; nothing occurs before it |
+| updated_at / updated_by | `unique (profile_id, shift_type_id)` — one standing shift per type per hand |
+
+**Biweekly cadence** is computed client-side, not stored per-occurrence: `occursOnCadence()`
+(`app/src/lib/handSchedule.js`) buckets a target date into its calendar week and compares
+that bucket to `biweekly_start_date`'s calendar week — an even number of weeks apart means
+it's an "on" week. This is deliberately based on calendar weeks rather than raw day
+differences, so a "Beginning on" date that doesn't fall on the shift's own weekday still
+produces a sensible alternating pattern instead of a broken one.
+
+### `hand_recurring_shift_skips`
+Cancels one occurrence of a recurring shift (e.g. "Anne called in sick on the 23rd") without
+touching the standing pattern — not a vacation.
+| Field | Notes |
+|---|---|
+| id | |
+| recurring_shift_id | FK → hand_recurring_shifts, on delete cascade |
+| date | the skipped occurrence; `unique (recurring_shift_id, date)` |
+
+### `hand_shift_events` + `hand_shift_event_members`
+One-off, non-recurring shifts, added from the calendar (`HandSchedule.jsx`), not the
+profile. Unlike a Wrangler one-off (`wrangler_assignments`, which still picks an existing
+day-scoped time slot), a Hand one-off is a **freestanding event** — its own title, date,
+free-text time, and notes — with **more than one hand** assignable to the same event (e.g.
+"Gymkhana · Sept 29 · 8am · Groom for event. Meet at SA or event venue · Anne, Lisa,
+Sharon"). `hand_shift_event_members` is a plain join table, no independent identity of its
+own.
+| Field (`hand_shift_events`) | Notes |
+|---|---|
+| id | |
+| title | e.g. "Gymkhana" |
+| event_date | |
+| event_time | free text, e.g. "8am" |
+| notes | e.g. "Groom for event. Meet at SA or event venue." |
+| updated_at / updated_by | |
+
+| Field (`hand_shift_event_members`) | Notes |
+|---|---|
+| event_id | FK → hand_shift_events, on delete cascade |
+| profile_id | FK → profiles, on delete cascade |
+| | `primary key (event_id, profile_id)` — no separate id |
+
+### `hand_vacations`
+A hand can have **multiple separate vacation ranges on file at once**, so this is its own
+table, not two columns on `profiles`.
+| Field | Notes |
+|---|---|
+| id | |
+| profile_id | FK → profiles, on delete cascade |
+| start_date | |
+| end_date | check `end_date >= start_date` |
+| updated_at / updated_by | |
+
+**Vacation is a visual-only overlay, never a data-removal.** When a hand is on vacation, the
+schedule UI (`HandSchedule.jsx`) dims their entry and adds a 🌴 on any day within a vacation
+range — but a recurring or one-off shift on that day is still shown, not hidden or deleted.
+Skipping or removing a specific shift is always a separate, explicit action (see
+`hand_recurring_shift_skips` above, and the one-off remove flow), never an automatic side
+effect of a vacation range.
+
+**Resolving a day's effective shifts** (client-side, in `HandSchedule.jsx`, same approach as
+`WranglerSchedule.jsx`): for a given date, take every `hand_recurring_shifts` row whose
+shift type's `day_of_week` matches that weekday, minus any with a matching
+`hand_recurring_shift_skips` row for that date, union every `hand_shift_event_members` row
+(expanded from `hand_shift_events`) for that exact date — then, independently, overlay
+vacation dimming per hand per day from `hand_vacations`, regardless of which of the two
+sources a given entry came from.
+
+There is no Hand equivalent of `wrangler_calendar_notes` (standing day/month notes) — out of
+scope for this feature.
+
+---
+
 ## Reports
 
 No new tables — reports are filtered, fixed-layout, **print-friendly browser views** (styled for `@media print`, no PDF generation for v1) built on top of existing data. Some reports also offer a plain CSV download of the same data (client-side generated, no new dependency) as a second, non-print output — e.g. the feed schedule report.
@@ -337,8 +455,8 @@ No new tables — reports are filtered, fixed-layout, **print-friendly browser v
 |---|---|---|
 | Feed chart | `head_feed_plan` × `head` × `feed_items` | e.g. species, feed item |
 | Turnout chart | `turnout_groups` × `turnout_group_members` × `turnout_locations` × `head` | e.g. location |
-| Monthly shifts view | `shifts` (all profiles) | month |
-| Individual shift view | `shifts` | profile_id |
+| Monthly shifts view *(not yet built — backlog)* | would be `hand_recurring_shifts` × `hand_recurring_shift_skips` × `hand_shift_events`/`hand_shift_event_members` (all hands) | month |
+| Individual shift view *(not yet built — backlog)* | same tables, filtered | profile_id |
 | Chore sheet | `chore_lists` × `chore_items` | *(printed from the list itself, not from /reports)* |
 
 Fixed columns per report, not a custom column-picker — deferred to a later iteration once real usage shows which variables matter most.

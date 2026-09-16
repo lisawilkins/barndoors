@@ -50,7 +50,25 @@ export default function Hands() {
       <TopNav />
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <h1 className="font-display text-3xl font-light text-ink-900">Hands</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="font-display text-3xl font-light text-ink-900">Hands</h1>
+          <div className="flex gap-2">
+            {isManager && (
+              <Link
+                to="/hands/shift-types"
+                className="flex h-11 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
+              >
+                Shift types
+              </Link>
+            )}
+            <Link
+              to="/hands/schedule"
+              className="flex h-11 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
+            >
+              Schedule
+            </Link>
+          </div>
+        </div>
 
         {isManager && (
           <div className="flex gap-3">

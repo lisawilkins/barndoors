@@ -9,6 +9,8 @@ import HerdDetail from './pages/HerdDetail'
 import HerdForm from './pages/HerdForm'
 import Hands from './pages/Hands'
 import HandForm from './pages/HandForm'
+import HandSchedule from './pages/HandSchedule'
+import HandShiftTypes from './pages/HandShiftTypes'
 import ManagerForm from './pages/ManagerForm'
 import Chores from './pages/Chores'
 import ChoreList from './pages/ChoreList'
@@ -96,6 +98,24 @@ function App() {
               <ProtectedRoute>
                 <ManagerRoute>
                   <ManagerForm />
+                </ManagerRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hands/schedule"
+            element={
+              <ProtectedRoute>
+                <HandSchedule />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/hands/shift-types"
+            element={
+              <ProtectedRoute>
+                <ManagerRoute>
+                  <HandShiftTypes />
                 </ManagerRoute>
               </ProtectedRoute>
             }
