@@ -1,4 +1,21 @@
-import { isoDate, weekdayKey } from './calendarSchedule'
+import { isoDate, weekdayKey, startOfWeek, dateFromIso, daysSinceEpoch } from './calendarSchedule'
+
+function weekIndex(date) {
+  return Math.floor(daysSinceEpoch(startOfWeek(date)) / 7)
+}
+
+// True if a recurring row's cadence includes `date`. Non-biweekly rows
+// always occur (the caller has already matched day-of-week). A biweekly row
+// occurs every other calendar week (Sun-Sat), counting from the week that
+// contains biweekly_start_date — and not at all before that date, since
+// "Beginning on" means the pattern hasn't started yet.
+function occursOnCadence(row, date) {
+  if (!row.biweekly) return true
+  if (!row.biweekly_start_date) return true
+  if (isoDate(date) < row.biweekly_start_date) return false
+  const weeksElapsed = weekIndex(date) - weekIndex(dateFromIso(row.biweekly_start_date))
+  return weeksElapsed % 2 === 0
+}
 
 // Hands and Admins can be scheduled (recurring shifts, one-off events,
 // vacations) — Admin is a technology-admin category layered on the same
@@ -24,6 +41,7 @@ export function effectiveShiftsForDate(date, recurring, skipsByRecurringId, even
 
   const fromRecurring = recurring
     .filter((row) => shiftTypesById[row.shift_type_id]?.day_of_week === weekday)
+    .filter((row) => occursOnCadence(row, date))
     .filter((row) => !(skipsByRecurringId[row.id] ?? new Set()).has(iso))
     .map((row) => ({ ...row, source: 'recurring', recurringShiftId: row.id }))
 

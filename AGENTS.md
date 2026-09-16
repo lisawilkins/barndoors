@@ -231,7 +231,14 @@ baked into it that should not be silently changed:
   defaults, day-specific or not, the same way they extend `wrangler_time_slots`. Because a
   shift type already carries its day, a **standing recurring shift is just one row** — pick
   a day, pick a shift type for that day — built directly on the hand's own profile
-  (`HandForm.jsx`), not the calendar. `hand_recurring_shift_skips` cancels a single
+  (`HandForm.jsx`), not the calendar. A row can optionally repeat **every 2 weeks instead of
+  every week** — an unchecked-by-default "Every 2 weeks" checkbox that reveals a "Beginning
+  on" date picker (`hand_recurring_shifts.biweekly` / `biweekly_start_date`, check
+  constraint requires the date when `biweekly` is true). The cadence is computed client-side
+  (`occursOnCadence()` in `app/src/lib/handSchedule.js`) by calendar week (Sun–Sat), not raw
+  day count, so it's forgiving of a "Beginning on" date that doesn't land on the row's own
+  weekday — whichever calendar week that date falls in is the first "on" week, alternating
+  from there; nothing occurs before that date. `hand_recurring_shift_skips` cancels a single
   occurrence of a standing shift (e.g. called in sick) without touching the weekly pattern;
   the calendar (`HandSchedule.jsx`) is where one-off, non-recurring shifts get added — but
   unlike a Wrangler one-off (which still picks an existing day-scoped time slot), a Hand

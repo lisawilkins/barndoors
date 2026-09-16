@@ -12,7 +12,7 @@ import { isSchedulable } from '../lib/handSchedule'
 const BLANK = { name: '', phone: '', email: '', role: 'hand', status: 'active' }
 
 function blankShiftRow() {
-  return { key: crypto.randomUUID(), id: null, day: 'mon', shift_type_id: '' }
+  return { key: crypto.randomUUID(), id: null, day: 'mon', shift_type_id: '', biweekly: false, biweekly_start_date: '' }
 }
 
 function blankVacationRow() {
@@ -60,7 +60,10 @@ export default function HandForm() {
           ? supabase.from('profiles').select('name, phone, email, role, status').eq('id', id).single()
           : Promise.resolve({ data: null }),
         isEdit
-          ? supabase.from('hand_recurring_shifts').select('id, shift_type_id').eq('profile_id', id)
+          ? supabase
+              .from('hand_recurring_shifts')
+              .select('id, shift_type_id, biweekly, biweekly_start_date')
+              .eq('profile_id', id)
           : Promise.resolve({ data: [] }),
         isEdit
           ? supabase.from('hand_vacations').select('id, start_date, end_date').eq('profile_id', id)
@@ -93,6 +96,8 @@ export default function HandForm() {
               id: row.id,
               day: typesById[row.shift_type_id]?.day_of_week ?? 'mon',
               shift_type_id: row.shift_type_id,
+              biweekly: row.biweekly,
+              biweekly_start_date: row.biweekly_start_date ?? '',
             })),
           )
         }
@@ -130,6 +135,7 @@ export default function HandForm() {
       current.map((row) => {
         if (row.key !== key) return row
         if (field === 'day') return { ...row, day: value, shift_type_id: '' }
+        if (field === 'biweekly') return { ...row, biweekly: value, biweekly_start_date: value ? row.biweekly_start_date : '' }
         return { ...row, [field]: value }
       }),
     )
@@ -190,6 +196,14 @@ export default function HandForm() {
       return
     }
 
+    for (const row of shiftRows) {
+      if (row.shift_type_id && row.biweekly && !row.biweekly_start_date) {
+        setError('Enter a "Beginning on" date for the every-2-weeks shift, or uncheck it.')
+        setSaving(false)
+        return
+      }
+    }
+
     for (const row of vacationRows) {
       if (!row.start_date && !row.end_date) continue
       if (!row.start_date || !row.end_date) {
@@ -235,6 +249,8 @@ export default function HandForm() {
         const payload = {
           profile_id: profileId,
           shift_type_id: row.shift_type_id,
+          biweekly: row.biweekly,
+          biweekly_start_date: row.biweekly ? row.biweekly_start_date : null,
           updated_by: profile?.id ?? null,
           updated_at: new Date().toISOString(),
         }
@@ -348,43 +364,62 @@ export default function HandForm() {
                 return (
                   <div
                     key={row.key}
-                    className="flex items-end gap-2 rounded-md border border-border-divider bg-surface-canvas p-3"
+                    className="flex flex-col gap-2 rounded-md border border-border-divider bg-surface-canvas p-3"
                   >
-                    <SelectField
-                      label="Day"
-                      className="flex-1"
-                      value={row.day}
-                      onChange={(event) => updateShiftRow(row.key, 'day', event.target.value)}
-                    >
-                      {WEEKDAYS.map((day) => (
-                        <option key={day.value} value={day.value}>
-                          {day.label}
+                    <div className="flex items-end gap-2">
+                      <SelectField
+                        label="Day"
+                        className="flex-1"
+                        value={row.day}
+                        onChange={(event) => updateShiftRow(row.key, 'day', event.target.value)}
+                      >
+                        {WEEKDAYS.map((day) => (
+                          <option key={day.value} value={day.value}>
+                            {day.label}
+                          </option>
+                        ))}
+                      </SelectField>
+                      <SelectField
+                        label="Shift"
+                        className="flex-1"
+                        value={row.shift_type_id}
+                        onChange={(event) => updateShiftRow(row.key, 'shift_type_id', event.target.value)}
+                      >
+                        <option value="" disabled>
+                          {dayTypes.length === 0 ? 'No shift types for this day' : 'Select…'}
                         </option>
-                      ))}
-                    </SelectField>
-                    <SelectField
-                      label="Shift"
-                      className="flex-1"
-                      value={row.shift_type_id}
-                      onChange={(event) => updateShiftRow(row.key, 'shift_type_id', event.target.value)}
-                    >
-                      <option value="" disabled>
-                        {dayTypes.length === 0 ? 'No shift types for this day' : 'Select…'}
-                      </option>
-                      {dayTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {type.name}
-                        </option>
-                      ))}
-                    </SelectField>
-                    <button
-                      type="button"
-                      onClick={() => removeShiftRow(row.key)}
-                      aria-label="Remove recurring shift"
-                      className="mb-[1px] flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-md border border-border-input bg-white text-ink-300 active:bg-surface-canvas"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">close</span>
-                    </button>
+                        {dayTypes.map((type) => (
+                          <option key={type.id} value={type.id}>
+                            {type.name}
+                          </option>
+                        ))}
+                      </SelectField>
+                      <button
+                        type="button"
+                        onClick={() => removeShiftRow(row.key)}
+                        aria-label="Remove recurring shift"
+                        className="mb-[1px] flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-md border border-border-input bg-white text-ink-300 active:bg-surface-canvas"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">close</span>
+                      </button>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-[15px] text-ink-900">
+                      <input
+                        type="checkbox"
+                        checked={row.biweekly}
+                        onChange={(event) => updateShiftRow(row.key, 'biweekly', event.target.checked)}
+                      />
+                      Every 2 weeks
+                    </label>
+
+                    {row.biweekly && (
+                      <DateField
+                        label="Beginning on"
+                        value={row.biweekly_start_date}
+                        onChange={(value) => updateShiftRow(row.key, 'biweekly_start_date', value)}
+                      />
+                    )}
                   </div>
                 )
               })}

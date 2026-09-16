@@ -363,17 +363,26 @@ loads on a local `supabase db reset`, never on the `supabase db push` this proje
 uses to deploy to the linked remote project.
 
 ### `hand_recurring_shifts`
-The standing weekly pattern (e.g. "Anne works every Monday AM"). Built directly on a hand's
-own profile (`HandForm.jsx`): pick a day, pick a shift type for that day. Since
-`shift_type_id` already carries a day (via `hand_shift_types.day_of_week`), the shift itself
-needs no separate day/date-range column — one row per (hand, shift type) is the whole
+The standing weekly (or every-other-week) pattern (e.g. "Anne works every Monday AM").
+Built directly on a hand's own profile (`HandForm.jsx`): pick a day, pick a shift type for
+that day. Since `shift_type_id` already carries a day (via `hand_shift_types.day_of_week`),
+the shift itself needs no separate day column — one row per (hand, shift type) is the whole
 standing pattern.
 | Field | Notes |
 |---|---|
 | id | |
 | profile_id | FK → profiles, on delete cascade |
 | shift_type_id | FK → hand_shift_types, on delete restrict — its `day_of_week` is this shift's day |
+| biweekly | boolean, default `false` — when true, the shift occurs every other calendar week instead of every week |
+| biweekly_start_date | nullable date; required when `biweekly` is true (check constraint). The "Beginning on" date a manager picks — anchors which calendar week (Sun–Sat) is the first "on" week; nothing occurs before it |
 | updated_at / updated_by | `unique (profile_id, shift_type_id)` — one standing shift per type per hand |
+
+**Biweekly cadence** is computed client-side, not stored per-occurrence: `occursOnCadence()`
+(`app/src/lib/handSchedule.js`) buckets a target date into its calendar week and compares
+that bucket to `biweekly_start_date`'s calendar week — an even number of weeks apart means
+it's an "on" week. This is deliberately based on calendar weeks rather than raw day
+differences, so a "Beginning on" date that doesn't fall on the shift's own weekday still
+produces a sensible alternating pattern instead of a broken one.
 
 ### `hand_recurring_shift_skips`
 Cancels one occurrence of a recurring shift (e.g. "Anne called in sick on the 23rd") without

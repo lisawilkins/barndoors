@@ -12,6 +12,21 @@ export function isoDate(date) {
   return `${year}-${month}-${day}`
 }
 
+// Inverse of isoDate — builds a local-midnight Date from a stored
+// YYYY-MM-DD string (never `new Date(iso)`, which parses as UTC and can
+// land on the wrong calendar day depending on the viewer's timezone).
+export function dateFromIso(iso) {
+  const [year, month, day] = iso.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+// Whole calendar days since a fixed reference point, computed via Date.UTC
+// so it's immune to DST (local-midnight ms differences aren't always exact
+// 24h multiples across a DST change; UTC ms always are).
+export function daysSinceEpoch(date) {
+  return Math.round(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000)
+}
+
 export function weekdayKey(date) {
   return CALENDAR_WEEKDAYS[date.getDay()]
 }
