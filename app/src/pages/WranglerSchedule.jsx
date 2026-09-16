@@ -7,7 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { TextAreaField, SelectField } from '../components/FormField'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
-import { usePageOrientation } from '../lib/pageSetup'
+import { printableArea, usePageOrientation } from '../lib/pageSetup'
 import {
   isoDate,
   weekdayKey,
@@ -804,7 +804,10 @@ export default function WranglerSchedule() {
         )}
 
         {!loading && !error && view === 'weekly' && (
-          <div className="wrangler-schedule-print-week hidden w-full flex-col bg-white print:flex">
+          <div
+            className="wrangler-schedule-print-week hidden flex-col bg-white print:flex"
+            style={{ width: `${printableArea('portrait').width}px` }}
+          >
             {weekDays
               .filter(
                 (date) =>
