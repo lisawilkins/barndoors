@@ -72,7 +72,12 @@ export default function WranglerTimeSlots() {
     setSavingAdd(true)
     setAddError('')
 
-    const sortOrder = slots.filter((slot) => slot.day_of_week === addForm.day).length
+    // One past the current max, not a count — a count collides with an
+    // existing sort_order once an earlier same-day slot has been archived
+    // (e.g. archiving Mon 5:30-6:30(0) leaves only 7:00-8:00(1) active, so a
+    // plain count of 1 would tie with it instead of landing after it).
+    const daySortOrders = slots.filter((slot) => slot.day_of_week === addForm.day).map((slot) => slot.sort_order)
+    const sortOrder = daySortOrders.length === 0 ? 0 : Math.max(...daySortOrders) + 1
 
     const { error: insertError } = await supabase
       .from('wrangler_time_slots')
