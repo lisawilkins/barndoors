@@ -1,84 +1,44 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
-import MonthCalendar from '../components/MonthCalendar'
-import LandscapeContent from '../components/LandscapeContent'
 import ConfirmDialog from '../components/ConfirmDialog'
 import NoPhotosIcon from '../components/NoPhotosIcon'
-import { TextAreaField, SelectField } from '../components/FormField'
+import { TextAreaField } from '../components/FormField'
+import { ScheduleViewHeader, SchedulePeriodNav } from '../components/ScheduleChrome'
+import { WranglerScheduleMonthly, WranglerScheduleMonthlyPrint } from './WranglerScheduleMonthly'
+import { WranglerScheduleWeekly, WranglerScheduleWeeklyPrint } from './WranglerScheduleWeekly'
+import WranglerScheduleAddForm from './WranglerScheduleAddForm'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
-import { printableArea, usePageOrientation } from '../lib/pageSetup'
+import { usePageOrientation } from '../lib/pageSetup'
+import { useCalendarView } from '../lib/calendarView'
 import {
   isoDate,
-  weekdayKey,
   monthKey,
   monthLabel,
   monthGridRange,
-  monthGridWeeks,
-  CALENDAR_WEEKDAY_LABELS,
-  startOfWeek,
   addDays,
-  weekdayDateLabel,
-  weekRangeLabel,
-  buildPrintLines,
-  effectiveAssignmentsForDate,
   wranglerShortName,
 } from '../lib/wranglerSchedule'
 
-const ACTIVITY_LABELS = { riding: 'Riding', working: 'Working' }
-
-// Monthly print paginates a fixed number of week-rows per physical page so
-// every assignment shows (no per-day truncation) — content grows naturally
-// via CSS Grid's default row-stretch, same as the on-screen Monthly cell.
-// 2 is a starting point per the product ask ("if that means two weeks per
-// page, let's try that"); retune after checking print preview against a
-// realistically busy month.
-const PRINT_WEEKS_PER_PAGE = 2
-
-function blankAssignmentForm() {
-  return {
-    wrangler_id: '',
-    activity: 'working',
-    time_slot_id: '',
-    horse_id: '',
-  }
-}
-
-function groupAssignmentsBySlot(assignments, timeSlotsById) {
-  const groups = {}
-  for (const assignment of assignments) {
-    const key = `${assignment.time_slot_id}-${assignment.activity}`
-    if (!groups[key]) groups[key] = { time_slot_id: assignment.time_slot_id, activity: assignment.activity, items: [] }
-    groups[key].items.push(assignment)
-  }
-  return Object.values(groups).sort((a, b) => {
-    const orderA = timeSlotsById[a.time_slot_id]?.sort_order ?? 0
-    const orderB = timeSlotsById[b.time_slot_id]?.sort_order ?? 0
-    if (orderA !== orderB) return orderA - orderB
-    return a.activity.localeCompare(b.activity)
-  })
-}
-
-function printPageRangeLabel(weekRows) {
-  const start = weekRows[0][0].date
-  const end = weekRows[weekRows.length - 1][6].date
-  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  const endLabel =
-    start.getMonth() === end.getMonth()
-      ? end.toLocaleDateString(undefined, { day: 'numeric' })
-      : end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-  return `${startLabel} – ${endLabel}`
-}
-
 export default function WranglerSchedule() {
   const { isManager } = useAuth()
-  const today = useMemo(() => new Date(), [])
-  const [view, setView] = useState('monthly') // 'monthly' | 'weekly'
-  const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth())
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(today))
-  const [expandedDays, setExpandedDays] = useState(() => new Set())
+  const [loading, setLoading] = useState(true)
+  const {
+    today,
+    view,
+    year,
+    month,
+    weekStart,
+    weekDays,
+    expandedDays,
+    changeMonth,
+    changeWeek,
+    switchToWeekly,
+    switchToMonthly,
+    goToWeekFor,
+    toggleDayExpanded,
+  } = useCalendarView(loading)
 
   const [wranglers, setWranglers] = useState([])
   const [timeSlots, setTimeSlots] = useState([])
@@ -89,12 +49,10 @@ export default function WranglerSchedule() {
   const [dayNotes, setDayNotes] = useState([])
   const [monthNote, setMonthNote] = useState(null)
 
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
 
   const [addDate, setAddDate] = useState(null)
-  const [assignmentForm, setAssignmentForm] = useState(null)
   const [savingAssignment, setSavingAssignment] = useState(false)
   const [assignmentError, setAssignmentError] = useState('')
 
@@ -106,7 +64,6 @@ export default function WranglerSchedule() {
   const [viewingNotesFor, setViewingNotesFor] = useState(null)
   const [deletingAssignment, setDeletingAssignment] = useState(null)
   const [actionError, setActionError] = useState('')
-  const [scrollToIso, setScrollToIso] = useState(null)
 
   // Weekly print is one page per day (portrait); Monthly print keeps the
   // letter-landscape default set in index.css.
@@ -229,101 +186,26 @@ export default function WranglerSchedule() {
     setReloadToken((current) => current + 1)
   }
 
-  function changeMonth(delta) {
-    let nextMonth = month + delta
-    let nextYear = year
-    if (nextMonth < 0) {
-      nextMonth = 11
-      nextYear -= 1
-    }
-    if (nextMonth > 11) {
-      nextMonth = 0
-      nextYear += 1
-    }
-    setMonth(nextMonth)
-    setYear(nextYear)
-  }
-
-  function changeWeek(delta) {
-    setWeekStart((current) => addDays(current, delta * 7))
-  }
-
-  function switchToWeekly() {
-    const base = today.getFullYear() === year && today.getMonth() === month ? today : new Date(year, month, 1)
-    setWeekStart(startOfWeek(base))
-    setExpandedDays(new Set())
-    setView('weekly')
-    window.scrollTo({ top: 0 })
-  }
-
-  function switchToMonthly() {
-    // weekStart is always a Sunday, which can land in the previous month from
-    // most of the days actually on screen (e.g. tapping Sep 1 sets weekStart
-    // to Aug 30) — anchor on the week's Wednesday instead so this lands on
-    // whichever month owns most of the visible week, not just its first day.
-    const monthAnchor = addDays(weekStart, 3)
-    setYear(monthAnchor.getFullYear())
-    setMonth(monthAnchor.getMonth())
-    setView('monthly')
-    window.scrollTo({ top: 0 })
-  }
-
-  function goToWeekFor(date) {
-    const iso = isoDate(date)
-    setWeekStart(startOfWeek(date))
-    setExpandedDays(new Set([iso]))
-    setScrollToIso(iso)
-    setView('weekly')
-  }
-
-  // Tapping a Monthly day should land the user on that day's card, not just
-  // the top of the week — scroll it into view once the Weekly list has
-  // rendered (data load finishes async, so this can't happen inline with
-  // goToWeekFor above).
-  useEffect(() => {
-    if (view !== 'weekly' || loading || !scrollToIso) return
-    const el = document.querySelector(`[data-day-iso="${scrollToIso}"]`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    setScrollToIso(null)
-  }, [view, loading, scrollToIso])
-
   function handleMonthlyDayClick(date) {
     goToWeekFor(date)
   }
 
-  function handleMonthlyAddClick(date, event) {
-    event.stopPropagation()
+  function handleMonthlyAddClick(date) {
     goToWeekFor(date)
     openAddForm(date)
   }
 
-  function toggleDayExpanded(iso) {
-    setExpandedDays((current) => {
-      const next = new Set(current)
-      if (next.has(iso)) next.delete(iso)
-      else next.add(iso)
-      return next
-    })
-  }
-
   function openAddForm(date) {
     setAddDate(date)
-    setAssignmentForm(blankAssignmentForm())
     setAssignmentError('')
   }
 
   function closeAddForm() {
     setAddDate(null)
-    setAssignmentForm(null)
     setAssignmentError('')
   }
 
-  function updateAssignmentForm(field, value) {
-    setAssignmentForm((current) => ({ ...current, [field]: value }))
-  }
-
-  async function handleSaveAssignment(event) {
-    event.preventDefault()
+  async function handleSaveAssignment(assignmentForm) {
     if (!assignmentForm.wrangler_id || !assignmentForm.time_slot_id) {
       setAssignmentError('Choose a wrangler and a time slot.')
       return
@@ -455,187 +337,33 @@ export default function WranglerSchedule() {
     reload()
   }
 
-  // Monthly cells are now a read-only summary — tapping one drills into the
-  // Weekly view for that day, where all editing happens. Grouped by time
-  // slot/activity (same grouping as Weekly) so the cell reads as "when, then
-  // who & on what" at a glance, with no other data (notes, source) cluttering
-  // it — the cell grows to fit its own day's list; CSS grid auto-sizes each
-  // week-row to its tallest cell, so a busy day doesn't clip, it just makes
-  // that whole row taller.
-  function renderDay(date, inMonth) {
-    const iso = isoDate(date)
-    const assignments = effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
-    const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
-    const isToday = iso === isoDate(today)
-
-    return (
-      <div
-        role={inMonth ? 'button' : undefined}
-        tabIndex={inMonth ? 0 : undefined}
-        onClick={inMonth ? () => handleMonthlyDayClick(date) : undefined}
-        className={`flex min-h-[92px] flex-col gap-1 p-1 text-left ${inMonth ? 'cursor-pointer active:bg-surface-canvas' : ''}`}
-      >
-        <div className="flex items-center justify-between">
-          <span
-            className={`text-[11px] font-semibold ${
-              isToday ? 'text-accent-bright' : inMonth ? 'text-ink-900' : 'text-ink-300'
-            }`}
-          >
-            {date.getDate()}
-          </span>
-          {isManager && inMonth && (
-            <button
-              type="button"
-              onClick={(event) => handleMonthlyAddClick(date, event)}
-              aria-label="Add assignment"
-              className="material-symbols-outlined text-[14px] text-ink-300 active:text-accent-bright"
-            >
-              add
-            </button>
-          )}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          {groups.map((group) => {
-            const slot = timeSlotsById[group.time_slot_id]
-            return (
-              <div key={`${group.time_slot_id}-${group.activity}`} className="flex flex-col gap-0.5">
-                <div className="flex items-baseline justify-between gap-1 px-0.5">
-                  <span className="truncate text-2xs font-bold text-ink-600">{slot?.name ?? '—'}</span>
-                  <span className="flex-shrink-0 text-2xs font-semibold text-ink-400">
-                    {ACTIVITY_LABELS[group.activity]}
-                  </span>
-                </div>
-                {group.items.map((assignment) => {
-                  const wrangler = wranglersById[assignment.wrangler_id]
-                  const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
-                  const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
-                  return (
-                    <div
-                      key={key}
-                      className={`flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-2xs text-chip-fg ${
-                        group.activity === 'working' ? 'bg-[#fff6ed]' : 'bg-chip-bg'
-                      }`}
-                    >
-                      <span className="flex min-w-0 items-center gap-0.5 truncate">
-                        <span className="truncate">{wranglerShortName(wrangler)}</span>
-                        {wrangler?.no_photos && <NoPhotosIcon className="text-[11px]" />}
-                      </span>
-                      <span className="flex-shrink-0">{horse?.name ?? '--'}</span>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
+  const monthlyProps = {
+    year,
+    month,
+    today,
+    isManager,
+    wranglersById,
+    timeSlotsById,
+    headsById,
+    recurring,
+    skipsByRecurringId,
+    oneOffByDate,
   }
 
-  // Grouped by time slot, same as the on-screen Monthly cell (renderDay) —
-  // the slot/activity sits as its own header line above the names assigned
-  // to it, rather than repeating that info on every name's own line.
-  function renderPrintDay(date, inMonth) {
-    const iso = isoDate(date)
-    const assignments = effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
-    const dayNote = dayNotesByDate[iso]
-    const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
-    // No cap — print shows everyone, no truncation (unlike the old
-    // PRINT_MAX_ITEMS_PER_DAY + "+N more" behavior this replaces).
-    const { lines } = buildPrintLines(groups, Infinity)
-
-    return (
-      <div className="flex h-full flex-col gap-px overflow-hidden px-1 py-0.5" style={{ opacity: inMonth ? 1 : 0.35 }}>
-        <span className="font-bold text-gray-900">{date.getDate()}</span>
-        {dayNote && <span className="truncate italic text-gray-600">{dayNote.body}</span>}
-        {lines.map((line) => {
-          if (line.type === 'header') {
-            const slot = timeSlotsById[line.group.time_slot_id]
-            return (
-              <div key={`header-${line.group.time_slot_id}-${line.group.activity}`} className="flex items-baseline gap-1">
-                <span className="truncate font-bold text-gray-900">{slot?.name ?? '—'}</span>
-                <span className="flex-shrink-0 font-bold text-gray-600">&middot; {ACTIVITY_LABELS[line.group.activity]}</span>
-              </div>
-            )
-          }
-          const assignment = line.item
-          const wrangler = wranglersById[assignment.wrangler_id]
-          const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
-          const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
-          return (
-            <span key={key} className="truncate text-gray-800">
-              {wranglerShortName(wrangler)}
-              {horse ? ` · ${horse.name}` : ''}
-            </span>
-          )
-        })}
-      </div>
-    )
+  const weeklyProps = {
+    weekDays,
+    weekStart,
+    today,
+    expandedDays,
+    isManager,
+    wranglersById,
+    timeSlotsById,
+    headsById,
+    recurring,
+    skipsByRecurringId,
+    oneOffByDate,
+    dayNotesByDate,
   }
-
-  // One page per day: a bold date header, then each time slot's assignments
-  // as a plain Wrangler/Horse/Notes table — no bell or trash icons, since
-  // those are screen-only controls. Type is a fixed, readable size and never
-  // shrunk to fit, same as the chore sheet (ChoreListPrint.jsx) — a day with
-  // an unusually long list simply runs onto a second page instead.
-  function renderWeeklyPrintDay(date) {
-    const iso = isoDate(date)
-    const assignments = effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
-    const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
-    const dayNote = dayNotesByDate[iso]
-
-    return (
-      <div key={iso} className="flex w-full flex-col gap-3 break-after-page pb-6">
-        <div className="flex flex-col gap-0.5 border-b-2 border-gray-900 pb-2">
-          <span className="text-sm font-bold text-gray-900">{weekRangeLabel(weekStart)}</span>
-          <span className="text-lg font-bold text-gray-900">{weekdayDateLabel(date)}</span>
-          {dayNote && <span className="text-sm italic text-gray-600">{dayNote.body}</span>}
-        </div>
-
-        {groups.map((group) => {
-          const slot = timeSlotsById[group.time_slot_id]
-          return (
-            <div key={`${group.time_slot_id}-${group.activity}`} className="flex flex-col">
-              <div className="flex items-baseline justify-between border-b border-gray-400 pb-1">
-                <span className="text-sm font-bold text-gray-900">{slot?.name ?? '—'}</span>
-                <span className="text-sm font-bold text-gray-900">{ACTIVITY_LABELS[group.activity]}</span>
-              </div>
-              {group.items.map((assignment) => {
-                const wrangler = wranglersById[assignment.wrangler_id]
-                const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
-                const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
-                return (
-                  <div key={key} className="flex break-inside-avoid gap-2 border-b border-gray-200 py-1 text-sm">
-                    <span className="w-28 flex-shrink-0 text-gray-900">{wranglerShortName(wrangler)}</span>
-                    <span className="w-20 flex-shrink-0 text-gray-900">{horse?.name ?? '--'}</span>
-                    <span className="flex flex-1 gap-1 text-gray-600">
-                      <span className="w-4 flex-shrink-0">
-                        {wrangler?.no_photos && (
-                          <span className="material-symbols-outlined text-[14px] text-gray-600" title="No photos">
-                            no_photography
-                          </span>
-                        )}
-                      </span>
-                      <span>{wrangler?.notes || '--'}</span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
-  const monthWeeks = useMemo(() => monthGridWeeks(year, month), [year, month])
-  const printPages = []
-  for (let i = 0; i < monthWeeks.length; i += PRINT_WEEKS_PER_PAGE) {
-    printPages.push(monthWeeks.slice(i, i + PRINT_WEEKS_PER_PAGE))
-  }
-  const addDaySlots = addDate ? timeSlots.filter((slot) => slot.day_of_week === weekdayKey(addDate)) : []
-  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
   return (
     <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
@@ -644,80 +372,21 @@ export default function WranglerSchedule() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
-          <span className="font-display text-3xl font-light text-ink-900">
-            {view === 'monthly' ? 'Monthly View' : 'Weekly View'}
-          </span>
-          <div className="flex w-full items-center justify-between">
-            {view === 'monthly' ? (
-              <button
-                type="button"
-                onClick={switchToWeekly}
-                className="text-[14px] font-semibold text-accent-bright underline active:opacity-70"
-              >
-                See Weekly View
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={switchToMonthly}
-                className="text-[14px] font-semibold text-accent-bright underline active:opacity-70"
-              >
-                See Monthly View
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => window.print()}
-              disabled={loading || Boolean(error)}
-              className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
-            >
-              Print
-            </button>
-          </div>
-        </div>
+        <ScheduleViewHeader
+          view={view}
+          onSwitchToWeekly={switchToWeekly}
+          onSwitchToMonthly={switchToMonthly}
+          printDisabled={loading || Boolean(error)}
+        />
 
-        {view === 'monthly' ? (
-          <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
-            <button
-              type="button"
-              onClick={() => changeMonth(-1)}
-              aria-label="Previous month"
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-border-input bg-white text-ink-600 active:bg-surface-canvas"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-            </button>
-            <span className="font-display text-xl font-semibold text-ink-900">{monthLabel(year, month)}</span>
-            <button
-              type="button"
-              onClick={() => changeMonth(1)}
-              aria-label="Next month"
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-border-input bg-white text-ink-600 active:bg-surface-canvas"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-            </button>
-          </div>
-        ) : (
-          <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
-            <button
-              type="button"
-              onClick={() => changeWeek(-1)}
-              aria-label="Previous week"
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-border-input bg-white text-ink-600 active:bg-surface-canvas"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_left</span>
-            </button>
-            <span className="font-display text-xl font-semibold text-ink-900">{weekRangeLabel(weekStart)}</span>
-            <button
-              type="button"
-              onClick={() => changeWeek(1)}
-              aria-label="Next week"
-              className="flex h-10 w-10 items-center justify-center rounded-md border border-border-input bg-white text-ink-600 active:bg-surface-canvas"
-            >
-              <span className="material-symbols-outlined text-[18px]">chevron_right</span>
-            </button>
-          </div>
-        )}
+        <SchedulePeriodNav
+          view={view}
+          year={year}
+          month={month}
+          weekStart={weekStart}
+          onChangeMonth={changeMonth}
+          onChangeWeek={changeWeek}
+        />
 
         {view === 'monthly' && (
           <div className="flex w-full max-w-[800px] items-center justify-between gap-3 rounded-md border border-border-card bg-white px-3 py-2 print:hidden">
@@ -743,309 +412,42 @@ export default function WranglerSchedule() {
         {actionError && <p className="text-[15px] text-red-600 print:hidden">{actionError}</p>}
 
         {!loading && !error && view === 'monthly' && (
-          <LandscapeContent className="print:hidden">
-            <MonthCalendar year={year} month={month} renderDay={renderDay} className="w-full" />
-          </LandscapeContent>
+          <WranglerScheduleMonthly
+            {...monthlyProps}
+            onDayClick={handleMonthlyDayClick}
+            onAddClick={handleMonthlyAddClick}
+          />
         )}
 
         {!loading && !error && view === 'weekly' && (
-          <div className="flex w-full max-w-[800px] flex-col gap-3 print:hidden">
-            {weekDays.map((date) => {
-              const iso = isoDate(date)
-              const expanded = expandedDays.has(iso)
-              const dayNote = dayNotesByDate[iso]
-              const assignments = effectiveAssignmentsForDate(
-                date,
-                recurring,
-                skipsByRecurringId,
-                oneOffByDate,
-                timeSlotsById,
-              )
-              const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
-              const isToday = iso === isoDate(today)
-
-              return (
-                <div key={iso} data-day-iso={iso} className="overflow-hidden rounded-md border border-border-card bg-white">
-                  <button
-                    type="button"
-                    onClick={() => toggleDayExpanded(iso)}
-                    className="flex w-full items-center justify-between px-3.5 py-3"
-                  >
-                    <span className={`font-display text-lg font-semibold ${isToday ? 'text-accent-bright' : 'text-ink-900'}`}>
-                      {weekdayDateLabel(date)}
-                    </span>
-                    <span className="material-symbols-outlined text-[18px] text-ink-300">
-                      {expanded ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </button>
-
-                  <div className="flex items-center justify-between gap-2 px-3.5 pb-3">
-                    {dayNote ? (
-                      isManager ? (
-                        <button
-                          type="button"
-                          onClick={() => openDayNoteEditor(iso)}
-                          className="min-w-0 flex-1 truncate text-left text-sm italic text-ink-600"
-                        >
-                          {dayNote.body}
-                        </button>
-                      ) : (
-                        <span className="min-w-0 flex-1 truncate text-sm italic text-ink-600">{dayNote.body}</span>
-                      )
-                    ) : isManager ? (
-                      <button
-                        type="button"
-                        onClick={() => openDayNoteEditor(iso)}
-                        className="text-sm font-medium text-accent-bright underline active:opacity-70"
-                      >
-                        Add note
-                      </button>
-                    ) : (
-                      <span />
-                    )}
-                    {isManager && expanded && (
-                      <button
-                        type="button"
-                        onClick={() => openAddForm(date)}
-                        aria-label="Add assignment"
-                        className="material-symbols-outlined flex-shrink-0 text-[18px] text-ink-300 active:text-accent-bright"
-                      >
-                        add
-                      </button>
-                    )}
-                  </div>
-
-                  {expanded && (
-                    <div className="flex flex-col gap-3 border-t border-border-hairline px-3.5 py-3">
-                      {groups.length === 0 && <p className="text-sm text-ink-300">No assignments.</p>}
-                      {groups.map((group) => {
-                        const slot = timeSlotsById[group.time_slot_id]
-                        return (
-                          <div key={`${group.time_slot_id}-${group.activity}`} className="flex flex-col gap-1">
-                            <span className="text-sm font-bold text-ink-900">
-                              {slot?.name ?? '—'} · {ACTIVITY_LABELS[group.activity]}
-                            </span>
-                            {group.items.map((assignment) => {
-                              const wrangler = wranglersById[assignment.wrangler_id]
-                              const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
-                              const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
-                              return (
-                                <div key={key} className="flex items-center justify-between gap-2 py-0.5">
-                                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                                    <span className="w-28 flex-shrink-0 truncate text-[15px] text-ink-900">
-                                      {wranglerShortName(wrangler)}
-                                    </span>
-                                    <span className="min-w-0 flex-1 truncate text-[15px] text-ink-600">
-                                      {horse?.name ?? ''}
-                                    </span>
-                                    {wrangler?.no_photos && <NoPhotosIcon />}
-                                  </div>
-                                  <div className="flex flex-shrink-0 items-center gap-1">
-                                    {wrangler?.notes && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setViewingNotesFor(wrangler)}
-                                        aria-label={`${wranglerShortName(wrangler)}'s notes`}
-                                        className="material-symbols-outlined text-[16px] text-accent-bright"
-                                      >
-                                        sticky_note_2
-                                      </button>
-                                    )}
-                                    {isManager && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setDeletingAssignment({ assignment, date })}
-                                        aria-label="Remove this assignment"
-                                        className="material-symbols-outlined text-[16px] text-ink-300"
-                                      >
-                                        delete
-                                      </button>
-                                    )}
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          <WranglerScheduleWeekly
+            {...weeklyProps}
+            onToggleDay={toggleDayExpanded}
+            onOpenDayNote={openDayNoteEditor}
+            onOpenAdd={openAddForm}
+            onViewNotes={setViewingNotesFor}
+            onDeleteAssignment={setDeletingAssignment}
+          />
         )}
 
         {!loading && !error && view === 'monthly' && (
-          <div
-            className="wrangler-schedule-print hidden w-full flex-col bg-white print:flex"
-            style={{ width: `${printableArea('landscape').width}px` }}
-          >
-            {printPages.map((weeks, pageIndex) => (
-              <div key={pageIndex} className="flex w-full flex-col gap-2 break-after-page pb-4">
-                <div className="flex items-baseline justify-between pb-1">
-                  <h2 className="text-xl font-bold text-gray-900">Wrangler schedule &middot; {monthLabel(year, month)}</h2>
-                  <span className="text-sm font-semibold text-gray-700">{printPageRangeLabel(weeks)}</span>
-                </div>
-                {pageIndex === 0 && monthNote && <p className="pb-1 text-sm italic text-gray-700">{monthNote.body}</p>}
-                <div className="grid grid-cols-7">
-                  {CALENDAR_WEEKDAY_LABELS.map((label) => (
-                    <div
-                      key={label}
-                      className="px-1 py-1 text-center text-2xs font-bold uppercase tracking-wider text-ink-300"
-                    >
-                      {label}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-7 border-l border-t border-gray-300 text-[10px] leading-[1.2]">
-                  {weeks.flat().map(({ date, inMonth }) => (
-                    <div
-                      key={isoDate(date)}
-                      className={`min-w-0 overflow-hidden border-b border-r border-gray-300 bg-white ${inMonth ? '' : 'bg-surface-canvas'}`}
-                    >
-                      {renderPrintDay(date, inMonth)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <WranglerScheduleMonthlyPrint {...monthlyProps} monthNote={monthNote} dayNotesByDate={dayNotesByDate} />
         )}
 
-        {!loading && !error && view === 'weekly' && (
-          <div
-            className="wrangler-schedule-print-week hidden flex-col bg-white print:flex"
-            style={{ width: `${printableArea('portrait').width}px` }}
-          >
-            {weekDays
-              .filter(
-                (date) =>
-                  effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
-                    .length > 0,
-              )
-              .map((date) => renderWeeklyPrintDay(date))}
-          </div>
-        )}
+        {!loading && !error && view === 'weekly' && <WranglerScheduleWeeklyPrint {...weeklyProps} />}
       </main>
 
-      {assignmentForm && (
-        <div
-          role="presentation"
-          onClick={closeAddForm}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 px-4 print:hidden"
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            onClick={(event) => event.stopPropagation()}
-            className="fscroll flex max-h-[90vh] w-full max-w-sm flex-col gap-3 overflow-auto rounded-md bg-white p-5 shadow-card"
-          >
-            <h2 className="font-display text-xl font-semibold text-ink-900">Add one-off assignment</h2>
-            <p className="text-sm text-ink-400">
-              {isoDate(addDate)} — for a standing weekly assignment, edit it on the wrangler's own profile instead.
-            </p>
-
-            <form onSubmit={handleSaveAssignment} className="flex flex-col gap-3">
-              <SelectField
-                label="Wrangler"
-                required
-                value={assignmentForm.wrangler_id}
-                onChange={(event) => updateAssignmentForm('wrangler_id', event.target.value)}
-              >
-                <option value="" disabled>
-                  Select…
-                </option>
-                {wranglers.map((wrangler) => (
-                  <option key={wrangler.id} value={wrangler.id}>
-                    {wranglerShortName(wrangler)}
-                  </option>
-                ))}
-              </SelectField>
-
-              <SelectField
-                label="Time slot"
-                required
-                value={assignmentForm.time_slot_id}
-                onChange={(event) => updateAssignmentForm('time_slot_id', event.target.value)}
-              >
-                <option value="" disabled>
-                  {addDaySlots.length === 0 ? 'No time slots for this day' : 'Select…'}
-                </option>
-                {addDaySlots.map((slot) => (
-                  <option key={slot.id} value={slot.id}>
-                    {slot.name}
-                  </option>
-                ))}
-              </SelectField>
-
-              {addDaySlots.length === 0 && (
-                <p className="text-sm text-ink-300">
-                  No time slots are configured for this day yet.{' '}
-                  <Link to="/wranglers/time-slots" className="underline" onClick={closeAddForm}>
-                    Add one
-                  </Link>
-                  .
-                </p>
-              )}
-
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 text-[15px] text-ink-900">
-                  <input
-                    type="radio"
-                    name="activity"
-                    checked={assignmentForm.activity === 'working'}
-                    onChange={() => updateAssignmentForm('activity', 'working')}
-                  />
-                  Working
-                </label>
-                <label className="flex items-center gap-2 text-[15px] text-ink-900">
-                  <input
-                    type="radio"
-                    name="activity"
-                    checked={assignmentForm.activity === 'riding'}
-                    onChange={() => updateAssignmentForm('activity', 'riding')}
-                  />
-                  Riding
-                </label>
-              </div>
-
-              {assignmentForm.activity === 'riding' && (
-                <SelectField
-                  label="Horse (optional)"
-                  value={assignmentForm.horse_id}
-                  onChange={(event) => updateAssignmentForm('horse_id', event.target.value)}
-                >
-                  <option value="">None</option>
-                  {heads.map((head) => (
-                    <option key={head.id} value={head.id}>
-                      {head.name}
-                    </option>
-                  ))}
-                </SelectField>
-              )}
-
-              {assignmentError && <p className="text-[15px] text-red-600">{assignmentError}</p>}
-
-              <div className="mt-1 flex gap-3">
-                <button
-                  type="button"
-                  onClick={closeAddForm}
-                  className="flex h-11 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingAssignment}
-                  className="flex h-11 flex-1 items-center justify-center rounded-md bg-accent-bright text-[15px] font-bold text-white active:opacity-90 disabled:opacity-50"
-                >
-                  {savingAssignment ? 'Saving…' : 'Add'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {addDate && (
+        <WranglerScheduleAddForm
+          date={addDate}
+          wranglers={wranglers}
+          timeSlots={timeSlots}
+          heads={heads}
+          saving={savingAssignment}
+          error={assignmentError}
+          onSubmit={handleSaveAssignment}
+          onClose={closeAddForm}
+        />
       )}
 
       {editingDayNoteIso && (
