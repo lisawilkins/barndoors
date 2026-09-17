@@ -6,16 +6,34 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { TextField, TextAreaField } from '../components/FormField'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import { printableArea, usePageOrientation } from '../lib/pageSetup'
 import {
   isoDate,
   monthLabel,
   monthGridRange,
+  weekRowsInMonth,
   startOfWeek,
   addDays,
   weekdayDateLabel,
   weekRangeLabel,
+  buildPrintLines,
 } from '../lib/calendarSchedule'
 import { effectiveShiftsForDate, groupEffectiveShifts, isOnVacation, SCHEDULABLE_ROLES } from '../lib/handSchedule'
+
+// Print sizing mirrors WranglerSchedule.jsx: same letter-landscape @page
+// rule (index.css) for Monthly, portrait for Weekly (one page per day), same
+// row-budget approach for the Monthly grid. Hands have no month/day standing
+// notes (unlike Wranglers), so there's no note-row height to budget here.
+const PX_PER_IN = 96
+const PAGE_HEIGHT_IN = 8.5
+const PAGE_WIDTH_IN = 11
+const MARGIN_IN = 0.35
+const PAGE_HEIGHT_PX = (PAGE_HEIGHT_IN - MARGIN_IN * 2) * PX_PER_IN
+const USABLE_WIDTH_PX = (PAGE_WIDTH_IN - MARGIN_IN * 2) * PX_PER_IN
+const PRINT_MAX_ITEMS_PER_DAY = 4
+const TITLE_ROW_PX = 40
+const WEEKDAY_HEADER_ROW_PX = 24
+const PRINT_SAFETY_BUFFER_PX = 12
 
 function blankEventForm() {
   return { title: '', event_time: '', notes: '', member_ids: [] }
@@ -56,6 +74,10 @@ export default function HandSchedule() {
   const [deletingShift, setDeletingShift] = useState(null)
   const [actionError, setActionError] = useState('')
   const [scrollToIso, setScrollToIso] = useState(null)
+
+  // Weekly print is one page per day (portrait); Monthly print keeps the
+  // letter-landscape default set in index.css.
+  usePageOrientation(view === 'weekly' ? 'portrait' : undefined)
 
   const handsById = useMemo(() => Object.fromEntries(hands.map((h) => [h.id, h])), [hands])
   const shiftTypesById = useMemo(() => Object.fromEntries(shiftTypes.map((t) => [t.id, t])), [shiftTypes])
@@ -436,38 +458,137 @@ export default function HandSchedule() {
     )
   }
 
+  // Grouped by shift type / one-off event, same as the on-screen Monthly
+  // cell (renderDay) — the shift type or event title sits as its own header
+  // line above the hands assigned to it, rather than repeating that info on
+  // every name's own line.
+  function renderPrintDay(date, inMonth) {
+    const shifts = effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById)
+    const groups = groupEffectiveShifts(shifts, shiftTypesById)
+    const { lines, shownCount } = buildPrintLines(groups, PRINT_MAX_ITEMS_PER_DAY)
+    const hiddenCount = shifts.length - shownCount
+
+    return (
+      <div className="flex h-full flex-col gap-0.5 overflow-hidden p-1" style={{ opacity: inMonth ? 1 : 0.35 }}>
+        <span className="font-bold text-gray-900">{date.getDate()}</span>
+        {lines.map((line) => {
+          if (line.type === 'header') {
+            return (
+              <div key={`header-${line.group.key}`} className="flex items-baseline justify-between gap-1">
+                <span className="truncate font-bold text-gray-900">{groupHeaderLabel(line.group, shiftTypesById)}</span>
+                {line.group.source === 'oneoff' && line.group.event_time && (
+                  <span className="flex-shrink-0 text-gray-600">{line.group.event_time}</span>
+                )}
+              </div>
+            )
+          }
+          const shift = line.item
+          const hand = handsById[shift.profile_id]
+          const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
+          const key =
+            shift.source === 'recurring' ? `recurring-${shift.recurringShiftId}` : `oneoff-${shift.eventId}-${shift.profile_id}`
+          return (
+            <span key={key} className="truncate text-gray-800">
+              {hand?.name ?? 'Unknown'}
+              {onVacation ? ' 🌴' : ''}
+            </span>
+          )
+        })}
+        {hiddenCount > 0 && <span className="text-gray-500">+{hiddenCount} more</span>}
+      </div>
+    )
+  }
+
+  // One page per day: a bold date header, then each shift type's (or one-off
+  // event's) hands as a plain list — no add/delete icons, since those are
+  // screen-only controls. Same fixed-size, never-shrunk approach as the
+  // Wrangler weekly print (renderWeeklyPrintDay in WranglerSchedule.jsx).
+  function renderWeeklyPrintDay(date) {
+    const shifts = effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById)
+    const groups = groupEffectiveShifts(shifts, shiftTypesById)
+
+    return (
+      <div key={isoDate(date)} className="flex w-full flex-col gap-3 break-after-page pb-6">
+        <div className="flex flex-col gap-0.5 border-b-2 border-gray-900 pb-2">
+          <span className="text-sm font-bold text-gray-900">{weekRangeLabel(weekStart)}</span>
+          <span className="text-lg font-bold text-gray-900">{weekdayDateLabel(date)}</span>
+        </div>
+
+        {groups.map((group) => (
+          <div key={group.key} className="flex flex-col">
+            <div className="flex items-baseline justify-between border-b border-gray-400 pb-1">
+              <span className="text-sm font-bold text-gray-900">{groupHeaderLabel(group, shiftTypesById)}</span>
+              {group.source === 'oneoff' && group.event_time && (
+                <span className="text-sm font-bold text-gray-900">{group.event_time}</span>
+              )}
+            </div>
+            {group.source === 'oneoff' && group.notes && (
+              <p className="pt-1 text-sm italic text-gray-600">{group.notes}</p>
+            )}
+            {group.items.map((shift) => {
+              const hand = handsById[shift.profile_id]
+              const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
+              const key =
+                shift.source === 'recurring' ? `recurring-${shift.recurringShiftId}` : `oneoff-${shift.eventId}-${shift.profile_id}`
+              return (
+                <div key={key} className="flex break-inside-avoid gap-2 border-b border-gray-200 py-1 text-sm">
+                  <span className="flex-1 text-gray-900">{hand?.name ?? 'Unknown'}</span>
+                  {onVacation && <span className="text-gray-600">🌴 vacation</span>}
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  const printTitleBlockPx = TITLE_ROW_PX + WEEKDAY_HEADER_ROW_PX + PRINT_SAFETY_BUFFER_PX
+  const rowHeightPx = (PAGE_HEIGHT_PX - printTitleBlockPx) / weekRowsInMonth(year, month)
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-canvas">
-      <TopNav backTo="/hands" backLabel="Hands" />
+    <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
+      <div className="print:hidden">
+        <TopNav backTo="/hands" backLabel="Hands" />
+      </div>
 
-      <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 sm:px-6">
-        <div className="flex w-full max-w-[800px] items-center justify-between">
+      <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 print:p-0 sm:px-6">
+        <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
           <span className="font-display text-3xl font-light text-ink-900">
             {view === 'monthly' ? 'Monthly View' : 'Weekly View'}
           </span>
-          {view === 'monthly' ? (
+          <div className="flex w-full items-center justify-between">
+            {view === 'monthly' ? (
+              <button
+                type="button"
+                onClick={switchToWeekly}
+                className="text-[14px] font-semibold text-accent-bright underline active:opacity-70"
+              >
+                See Weekly View
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={switchToMonthly}
+                className="text-[14px] font-semibold text-accent-bright underline active:opacity-70"
+              >
+                See Monthly View
+              </button>
+            )}
             <button
               type="button"
-              onClick={switchToWeekly}
-              className="text-[14px] font-semibold text-ink-600 underline active:text-ink-900"
+              onClick={() => window.print()}
+              disabled={loading || Boolean(error)}
+              className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
             >
-              Weekly View
+              Print
             </button>
-          ) : (
-            <button
-              type="button"
-              onClick={switchToMonthly}
-              className="text-[14px] font-semibold text-ink-600 underline active:text-ink-900"
-            >
-              Monthly View
-            </button>
-          )}
+          </div>
         </div>
 
         {view === 'monthly' ? (
-          <div className="flex w-full max-w-[800px] items-center justify-between">
+          <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
             <button
               type="button"
               onClick={() => changeMonth(-1)}
@@ -487,7 +608,7 @@ export default function HandSchedule() {
             </button>
           </div>
         ) : (
-          <div className="flex w-full max-w-[800px] items-center justify-between">
+          <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
             <button
               type="button"
               onClick={() => changeWeek(-1)}
@@ -508,18 +629,18 @@ export default function HandSchedule() {
           </div>
         )}
 
-        {loading && <p className="text-[15px] text-ink-400">Loading…</p>}
-        {error && <p className="text-[15px] text-red-600">{error}</p>}
-        {actionError && <p className="text-[15px] text-red-600">{actionError}</p>}
+        {loading && <p className="text-[15px] text-ink-400 print:hidden">Loading…</p>}
+        {error && <p className="text-[15px] text-red-600 print:hidden">{error}</p>}
+        {actionError && <p className="text-[15px] text-red-600 print:hidden">{actionError}</p>}
 
         {!loading && !error && view === 'monthly' && (
-          <LandscapeContent>
+          <LandscapeContent className="print:hidden">
             <MonthCalendar year={year} month={month} renderDay={renderDay} className="w-full" />
           </LandscapeContent>
         )}
 
         {!loading && !error && view === 'weekly' && (
-          <div className="flex w-full max-w-[800px] flex-col gap-3">
+          <div className="flex w-full max-w-[800px] flex-col gap-3 print:hidden">
             {weekDays.map((date) => {
               const iso = isoDate(date)
               const expanded = expandedDays.has(iso)
@@ -604,13 +725,44 @@ export default function HandSchedule() {
             })}
           </div>
         )}
+
+        {!loading && !error && view === 'monthly' && (
+          <div
+            className="hand-schedule-print hidden w-full flex-col overflow-hidden bg-white print:flex"
+            style={{ height: `${PAGE_HEIGHT_PX}px` }}
+          >
+            <div className="flex items-baseline justify-between pb-2">
+              <h2 className="text-xl font-bold text-gray-900">Hand schedule &middot; {monthLabel(year, month)}</h2>
+            </div>
+            <MonthCalendar
+              year={year}
+              month={month}
+              renderDay={renderPrintDay}
+              gridStyle={{ gridAutoRows: `${rowHeightPx}px`, fontSize: '8px', width: `${USABLE_WIDTH_PX}px` }}
+            />
+          </div>
+        )}
+
+        {!loading && !error && view === 'weekly' && (
+          <div
+            className="hand-schedule-print-week hidden flex-col bg-white print:flex"
+            style={{ width: `${printableArea('portrait').width}px` }}
+          >
+            {weekDays
+              .filter(
+                (date) =>
+                  effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById).length > 0,
+              )
+              .map((date) => renderWeeklyPrintDay(date))}
+          </div>
+        )}
       </main>
 
       {eventForm && (
         <div
           role="presentation"
           onClick={closeAddForm}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 px-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/50 px-4 print:hidden"
         >
           <div
             role="dialog"

@@ -145,24 +145,17 @@ export default function FeedScheduleCardReport() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-display text-3xl font-light text-ink-900">
-              Feed schedule &middot; Card view
-            </h1>
-          </div>
-          <div className="flex gap-3">
-            <Link
-              to="/reports/feed-schedule"
-              className="flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-5 text-[16px] font-semibold text-ink-600 active:bg-surface-canvas"
-            >
-              View as table
+        <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
+          <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
+          <div className="flex w-full items-center justify-between">
+            <Link to="/reports/feed-schedule" className="text-[14px] font-semibold text-accent-bright underline active:opacity-70">
+              See Table View
             </Link>
             <button
               type="button"
               onClick={() => window.print()}
               disabled={loading || Boolean(error)}
-              className="flex h-12 items-center justify-center rounded-md bg-accent-bright px-5 text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
+              className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
             >
               Print
             </button>

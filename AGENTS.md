@@ -197,12 +197,13 @@ baked into it that should not be silently changed:
   local to the page, cleared on reload, and never written to the database.
 - **Reports are views, not new data.** Feed chart and turnout chart are filtered queries
   over existing tables — fixed columns, no dynamic column selection in v1. (A chore list
-  prints from the list itself, not from `/reports`.) A monthly shifts view and an
-  individual hand's shift view are **still planned, not built** — `/hands/schedule`
-  (Monthly/Weekly) covers on-screen viewing today, but neither a `/reports` entry nor a
-  print/CSV layout exists yet for hand shifts specifically; build these later as filtered
-  views over `hand_recurring_shifts` / `hand_shift_events` / `hand_recurring_shift_skips`,
-  not as new data.
+  prints from the list itself, not from `/reports`; Hand and Wrangler schedules follow the
+  same precedent — `/hands/schedule` and `/wranglers/schedule` each print directly from the
+  Monthly/Weekly view via a Print link, same letter-page sizing approach for both, no
+  separate `/reports` entry for either.) A `/reports`-listed hand-shift report (distinct
+  from the in-schedule print) is still **planned, not built** — build it later as a
+  filtered view over `hand_recurring_shifts` / `hand_shift_events` /
+  `hand_recurring_shift_skips`, not as new data.
 - **Wranglers are tracked data, not app users.** They never sign in — same read/write split
   as `head` (hands read, managers/admins write). Only first name, last initial, age, and
   birthdate are collected (birthdate replaced a former "gender" field on 2026-09-15 —
@@ -210,7 +211,11 @@ baked into it that should not be silently changed:
   from the app now, same precedent as `head.tag_id`); more fields can be added later,
   but nothing beyond that without asking. **Time slots are day-specific** (`wrangler_time_slots.day_of_week` — "Mon
   5:30–6:30 PM" is a different row from "Tue 5:30–6:30 PM"), managed on their own page
-  (`/wranglers/time-slots`), not inline on a wrangler's profile. Because a slot already
+  (`/wranglers/time-slots`), not inline on a wrangler's profile. A slot's time is entered as
+  structured start/end times (native time pickers, not free text) — `name` is generated from
+  them ("5:30 – 6:30 PM") and `sort_order` is always the start time's minutes-since-midnight,
+  recomputed on every save, so the display order can't drift out of sync with the actual time
+  the way a separately hand-set `sort_order` once could. Because a slot already
   carries its day, a **standing weekly assignment is just one row** — pick a day, pick a
   time slot for that day, pick Ride or Work, and a horse if riding — built directly on the
   wrangler's own profile (`WranglerForm.jsx`), not the calendar. `wrangler_recurring_skips`

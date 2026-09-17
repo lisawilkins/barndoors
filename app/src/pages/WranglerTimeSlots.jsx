@@ -3,9 +3,10 @@ import TopNav from '../components/TopNav'
 import { TextField, SelectField } from '../components/FormField'
 import { supabase } from '../lib/supabaseClient'
 import { WEEKDAYS } from '../lib/turnoutSchedule'
+import { formatTimeRange, minutesSinceMidnight } from '../lib/formatTime'
 
 function blankAddForm() {
-  return { day: 'mon', name: '' }
+  return { day: 'mon', start_time: '', end_time: '' }
 }
 
 // Time slots are day-specific ("Mon 5:30–6:30 PM"), managed here rather than
@@ -25,7 +26,8 @@ export default function WranglerTimeSlots() {
   const [addError, setAddError] = useState('')
 
   const [editingSlot, setEditingSlot] = useState(null)
-  const [editNameDraft, setEditNameDraft] = useState('')
+  const [editStartDraft, setEditStartDraft] = useState('')
+  const [editEndDraft, setEditEndDraft] = useState('')
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState('')
 
@@ -35,7 +37,7 @@ export default function WranglerTimeSlots() {
 
     const { data, error: fetchError } = await supabase
       .from('wrangler_time_slots')
-      .select('id, name, day_of_week, sort_order, active')
+      .select('id, name, day_of_week, sort_order, active, start_time, end_time')
       .eq('active', true)
       .order('sort_order')
 
@@ -63,25 +65,29 @@ export default function WranglerTimeSlots() {
 
   async function handleAddSlot(event) {
     event.preventDefault()
-    const name = addForm.name.trim()
-    if (!name) {
-      setAddError('Enter a time.')
+    const { day, start_time, end_time } = addForm
+    if (!start_time || !end_time) {
+      setAddError('Enter a start and end time.')
+      return
+    }
+    if (end_time <= start_time) {
+      setAddError('End time must be after start time.')
       return
     }
 
     setSavingAdd(true)
     setAddError('')
 
-    // One past the current max, not a count — a count collides with an
-    // existing sort_order once an earlier same-day slot has been archived
-    // (e.g. archiving Mon 5:30-6:30(0) leaves only 7:00-8:00(1) active, so a
-    // plain count of 1 would tie with it instead of landing after it).
-    const daySortOrders = slots.filter((slot) => slot.day_of_week === addForm.day).map((slot) => slot.sort_order)
-    const sortOrder = daySortOrders.length === 0 ? 0 : Math.max(...daySortOrders) + 1
-
-    const { error: insertError } = await supabase
-      .from('wrangler_time_slots')
-      .insert({ name, day_of_week: addForm.day, sort_order: sortOrder })
+    // sort_order is minutes-since-midnight of start_time — self-sorting,
+    // so a new slot always lands in the right chronological position
+    // without needing to look at any sibling row's sort_order.
+    const { error: insertError } = await supabase.from('wrangler_time_slots').insert({
+      name: formatTimeRange(start_time, end_time),
+      day_of_week: day,
+      start_time,
+      end_time,
+      sort_order: minutesSinceMidnight(start_time),
+    })
 
     setSavingAdd(false)
 
@@ -96,7 +102,8 @@ export default function WranglerTimeSlots() {
 
   function openEditModal(slot) {
     setEditingSlot(slot)
-    setEditNameDraft(slot.name)
+    setEditStartDraft(slot.start_time ?? '')
+    setEditEndDraft(slot.end_time ?? '')
     setEditError('')
   }
 
@@ -105,10 +112,13 @@ export default function WranglerTimeSlots() {
     setEditError('')
   }
 
-  async function handleSaveEditedName() {
-    const name = editNameDraft.trim()
-    if (!name) {
-      setEditError('Enter a time.')
+  async function handleSaveEditedTime() {
+    if (!editStartDraft || !editEndDraft) {
+      setEditError('Enter a start and end time.')
+      return
+    }
+    if (editEndDraft <= editStartDraft) {
+      setEditError('End time must be after start time.')
       return
     }
 
@@ -117,7 +127,12 @@ export default function WranglerTimeSlots() {
 
     const { error: updateError } = await supabase
       .from('wrangler_time_slots')
-      .update({ name })
+      .update({
+        name: formatTimeRange(editStartDraft, editEndDraft),
+        start_time: editStartDraft,
+        end_time: editEndDraft,
+        sort_order: minutesSinceMidnight(editStartDraft),
+      })
       .eq('id', editingSlot.id)
 
     setSavingEdit(false)
@@ -235,14 +250,25 @@ export default function WranglerTimeSlots() {
                 ))}
               </SelectField>
 
-              <TextField
-                label="Time"
-                required
-                autoFocus
-                placeholder="e.g. 5:30–6:30 PM"
-                value={addForm.name}
-                onChange={(event) => setAddForm((current) => ({ ...current, name: event.target.value }))}
-              />
+              <div className="flex gap-3">
+                <TextField
+                  label="Start time"
+                  type="time"
+                  required
+                  autoFocus
+                  className="flex-1"
+                  value={addForm.start_time}
+                  onChange={(event) => setAddForm((current) => ({ ...current, start_time: event.target.value }))}
+                />
+                <TextField
+                  label="End time"
+                  type="time"
+                  required
+                  className="flex-1"
+                  value={addForm.end_time}
+                  onChange={(event) => setAddForm((current) => ({ ...current, end_time: event.target.value }))}
+                />
+              </div>
 
               {addError && <p className="text-[15px] text-red-600">{addError}</p>}
 
@@ -283,7 +309,22 @@ export default function WranglerTimeSlots() {
               Edit {WEEKDAYS.find((day) => day.value === editingSlot.day_of_week)?.label} slot
             </h2>
 
-            <TextField label="Time" value={editNameDraft} onChange={(event) => setEditNameDraft(event.target.value)} />
+            <div className="flex gap-3">
+              <TextField
+                label="Start time"
+                type="time"
+                className="flex-1"
+                value={editStartDraft}
+                onChange={(event) => setEditStartDraft(event.target.value)}
+              />
+              <TextField
+                label="End time"
+                type="time"
+                className="flex-1"
+                value={editEndDraft}
+                onChange={(event) => setEditEndDraft(event.target.value)}
+              />
+            </div>
             <p className="text-sm text-ink-400">Changing the time updates it everywhere it's used, going forward.</p>
 
             {editError && <p className="text-[15px] text-red-600">{editError}</p>}
@@ -298,7 +339,7 @@ export default function WranglerTimeSlots() {
               </button>
               <button
                 type="button"
-                onClick={handleSaveEditedName}
+                onClick={handleSaveEditedTime}
                 disabled={savingEdit}
                 className="flex h-11 flex-1 items-center justify-center rounded-md bg-accent-bright text-[15px] font-bold text-white active:opacity-90 disabled:opacity-50"
               >
