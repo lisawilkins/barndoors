@@ -261,17 +261,24 @@ hand lockout).
 | status | `active` \| `archived` (soft delete) |
 
 ### `wrangler_time_slots`
-Predefined, manager-extensible list (same pattern as `feed_items`/`turnout_locations`) rather
-than free-form start/end times, so a printed schedule scans consistently. Day-specific — "Mon
-5:30–6:30 PM" and "Tue 5:30–6:30 PM" are separate rows, even with the same `name` — since a
-slot's own day is what makes assigning a wrangler to it a *recurring weekly* assignment.
-Managed on its own page (`/wranglers/time-slots`), not inline on a wrangler's profile.
+Predefined, manager-extensible list (same pattern as `feed_items`/`turnout_locations`).
+Day-specific — "Mon 5:30–6:30 PM" and "Tue 5:30–6:30 PM" are separate rows, even with the same
+`name` — since a slot's own day is what makes assigning a wrangler to it a *recurring weekly*
+assignment. Managed on its own page (`/wranglers/time-slots`), not inline on a wrangler's
+profile. `start_time`/`end_time` are entered via structured time pickers (not free text) on
+that page; `name` is a generated display string ("5:30 – 6:30 PM") derived from them on every
+save, and `sort_order` is always set to `start_time`'s minutes-since-midnight at the same time
+— so the display text and the sort order can never drift apart the way they once did (a past
+bug had one day's two slots backwards because `sort_order` was a separately hand-maintained
+integer, set once at creation and never resynced on rename).
 | Field | Notes |
 |---|---|
 | id | |
-| name | e.g. "5:30–6:30 PM" |
+| name | generated, e.g. "5:30 – 6:30 PM" — not directly editable |
 | day_of_week | `mon`–`sun` |
-| sort_order | |
+| start_time | `time`, nullable (null only on old archived rows predating this column) |
+| end_time | `time`, nullable; `check (start_time is null or end_time is null or end_time > start_time)` |
+| sort_order | always `start_time`'s minutes-since-midnight, recomputed on every insert/update |
 | active | `unique (day_of_week, name) where active` — archived slots keep their name without blocking a new active slot from reusing it |
 
 ### `wrangler_recurring_assignments`

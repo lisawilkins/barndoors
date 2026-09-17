@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import LandscapeContent from '../components/LandscapeContent'
 import { supabase } from '../lib/supabaseClient'
@@ -141,16 +142,17 @@ export default function FeedScheduleReport() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
-          <div className="flex flex-col gap-1">
-            <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
-          </div>
-          <div className="flex gap-3">
+        <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
+          <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
+          <div className="flex w-full items-center justify-between">
+            <Link to="/reports/feed-schedule-cards" className="text-[14px] font-semibold text-accent-bright underline active:opacity-70">
+              See Card View
+            </Link>
             <button
               type="button"
               onClick={handleDownloadCsv}
               disabled={loading || Boolean(error)}
-              className="flex h-12 items-center justify-center rounded-md border border-border-input bg-white px-5 text-[16px] font-semibold text-ink-600 active:bg-surface-canvas disabled:opacity-50"
+              className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
             >
               Download CSV
             </button>
@@ -158,7 +160,7 @@ export default function FeedScheduleReport() {
               type="button"
               onClick={() => window.print()}
               disabled={loading || Boolean(error)}
-              className="flex h-12 items-center justify-center rounded-md bg-accent-bright px-5 text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
+              className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
             >
               Print
             </button>
@@ -170,7 +172,7 @@ export default function FeedScheduleReport() {
 
         {!loading && !error && (
           <>
-            <div className="flex w-full max-w-[800px] items-baseline justify-between print:max-w-none">
+            <div className="hidden w-full max-w-[800px] items-baseline justify-between print:flex print:max-w-none">
               <h2 className="text-xl font-bold text-gray-900">Feed schedule</h2>
               <span className="text-sm text-gray-500">{today}</span>
             </div>

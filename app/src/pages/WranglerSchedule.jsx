@@ -15,41 +15,26 @@ import {
   monthKey,
   monthLabel,
   monthGridRange,
-  weekRowsInMonth,
+  monthGridWeeks,
+  CALENDAR_WEEKDAY_LABELS,
   startOfWeek,
   addDays,
   weekdayDateLabel,
   weekRangeLabel,
+  buildPrintLines,
   effectiveAssignmentsForDate,
   wranglerShortName,
 } from '../lib/wranglerSchedule'
 
 const ACTIVITY_LABELS = { riding: 'Riding', working: 'Working' }
 
-// Print sizing follows the same letter-landscape @page rule (index.css) and
-// row-budget approach as the other reports, but the grid shape here is
-// always 7 columns × however many week-rows the month needs, so — unlike the
-// feed reports — there's no need to also derive a column-based font size.
-// Print always renders the month grid regardless of which view is on
-// screen — a weekly print layout isn't part of this pass.
-const PX_PER_IN = 96
-const PAGE_HEIGHT_IN = 8.5
-const PAGE_WIDTH_IN = 11
-const MARGIN_IN = 0.35
-const PAGE_HEIGHT_PX = (PAGE_HEIGHT_IN - MARGIN_IN * 2) * PX_PER_IN
-const USABLE_WIDTH_PX = (PAGE_WIDTH_IN - MARGIN_IN * 2) * PX_PER_IN
-const PRINT_MAX_ITEMS_PER_DAY = 4
-
-// Everything above the day grid has to be budgeted out of the page height,
-// or the grid ends up taller than what's left and spills a near-empty
-// second page — which is exactly what happened when the old fixed
-// TITLE_BLOCK_PX didn't account for the weekday-header row (rendered by
-// MonthCalendar above the grid, sized by its own text-2xs/py-1 styling, not
-// by the grid's own gridStyle) or the month note's variable height.
-const TITLE_ROW_PX = 40
-const MONTH_NOTE_ROW_PX = 32
-const WEEKDAY_HEADER_ROW_PX = 24
-const PRINT_SAFETY_BUFFER_PX = 12
+// Monthly print paginates a fixed number of week-rows per physical page so
+// every assignment shows (no per-day truncation) — content grows naturally
+// via CSS Grid's default row-stretch, same as the on-screen Monthly cell.
+// 2 is a starting point per the product ask ("if that means two weeks per
+// page, let's try that"); retune after checking print preview against a
+// realistically busy month.
+const PRINT_WEEKS_PER_PAGE = 2
 
 function blankAssignmentForm() {
   return {
@@ -73,6 +58,17 @@ function groupAssignmentsBySlot(assignments, timeSlotsById) {
     if (orderA !== orderB) return orderA - orderB
     return a.activity.localeCompare(b.activity)
   })
+}
+
+function printPageRangeLabel(weekRows) {
+  const start = weekRows[0][0].date
+  const end = weekRows[weekRows.length - 1][6].date
+  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const endLabel =
+    start.getMonth() === end.getMonth()
+      ? end.toLocaleDateString(undefined, { day: 'numeric' })
+      : end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return `${startLabel} – ${endLabel}`
 }
 
 export default function WranglerSchedule() {
@@ -437,15 +433,6 @@ export default function WranglerSchedule() {
     reload()
   }
 
-  function assignmentLabel(assignment) {
-    const wrangler = wranglersById[assignment.wrangler_id]
-    const slot = timeSlotsById[assignment.time_slot_id]
-    const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
-    return `${wranglerShortName(wrangler)} · ${slot?.name ?? '—'} · ${ACTIVITY_LABELS[assignment.activity]}${
-      horse ? ` · ${horse.name}` : ''
-    }`
-  }
-
   // Monthly cells are now a read-only summary — tapping one drills into the
   // Weekly view for that day, where all editing happens. Grouped by time
   // slot/activity (same grouping as Weekly) so the cell reads as "when, then
@@ -504,7 +491,9 @@ export default function WranglerSchedule() {
                   return (
                     <div
                       key={key}
-                      className="flex items-center justify-between gap-1 rounded-sm bg-chip-bg px-1 py-0.5 text-2xs text-chip-fg"
+                      className={`flex items-center justify-between gap-1 rounded-sm px-1 py-0.5 text-2xs text-chip-fg ${
+                        group.activity === 'working' ? 'bg-[#fff6ed]' : 'bg-chip-bg'
+                      }`}
                     >
                       <span className="flex min-w-0 items-center gap-0.5 truncate">
                         <span className="truncate">{wranglerShortName(wrangler)}</span>
@@ -522,26 +511,43 @@ export default function WranglerSchedule() {
     )
   }
 
+  // Grouped by time slot, same as the on-screen Monthly cell (renderDay) —
+  // the slot/activity sits as its own header line above the names assigned
+  // to it, rather than repeating that info on every name's own line.
   function renderPrintDay(date, inMonth) {
     const iso = isoDate(date)
     const assignments = effectiveAssignmentsForDate(date, recurring, skipsByRecurringId, oneOffByDate, timeSlotsById)
     const dayNote = dayNotesByDate[iso]
-    const shown = assignments.slice(0, PRINT_MAX_ITEMS_PER_DAY)
-    const hiddenCount = assignments.length - shown.length
+    const groups = groupAssignmentsBySlot(assignments, timeSlotsById)
+    // No cap — print shows everyone, no truncation (unlike the old
+    // PRINT_MAX_ITEMS_PER_DAY + "+N more" behavior this replaces).
+    const { lines } = buildPrintLines(groups, Infinity)
 
     return (
-      <div className="flex h-full flex-col gap-0.5 overflow-hidden p-1" style={{ opacity: inMonth ? 1 : 0.35 }}>
+      <div className="flex h-full flex-col gap-px overflow-hidden px-1 py-0.5" style={{ opacity: inMonth ? 1 : 0.35 }}>
         <span className="font-bold text-gray-900">{date.getDate()}</span>
         {dayNote && <span className="truncate italic text-gray-600">{dayNote.body}</span>}
-        {shown.map((assignment) => {
+        {lines.map((line) => {
+          if (line.type === 'header') {
+            const slot = timeSlotsById[line.group.time_slot_id]
+            return (
+              <div key={`header-${line.group.time_slot_id}-${line.group.activity}`} className="flex items-baseline gap-1">
+                <span className="truncate font-bold text-gray-900">{slot?.name ?? '—'}</span>
+                <span className="flex-shrink-0 font-bold text-gray-600">&middot; {ACTIVITY_LABELS[line.group.activity]}</span>
+              </div>
+            )
+          }
+          const assignment = line.item
+          const wrangler = wranglersById[assignment.wrangler_id]
+          const horse = assignment.horse_id ? headsById[assignment.horse_id] : null
           const key = `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
           return (
             <span key={key} className="truncate text-gray-800">
-              {assignmentLabel(assignment)}
+              {wranglerShortName(wrangler)}
+              {horse ? ` · ${horse.name}` : ''}
             </span>
           )
         })}
-        {hiddenCount > 0 && <span className="text-gray-500">+{hiddenCount} more</span>}
       </div>
     )
   }
@@ -601,9 +607,11 @@ export default function WranglerSchedule() {
     )
   }
 
-  const printTitleBlockPx =
-    TITLE_ROW_PX + (monthNote ? MONTH_NOTE_ROW_PX : 0) + WEEKDAY_HEADER_ROW_PX + PRINT_SAFETY_BUFFER_PX
-  const rowHeightPx = (PAGE_HEIGHT_PX - printTitleBlockPx) / weekRowsInMonth(year, month)
+  const monthWeeks = useMemo(() => monthGridWeeks(year, month), [year, month])
+  const printPages = []
+  for (let i = 0; i < monthWeeks.length; i += PRINT_WEEKS_PER_PAGE) {
+    printPages.push(monthWeeks.slice(i, i + PRINT_WEEKS_PER_PAGE))
+  }
   const addDaySlots = addDate ? timeSlots.filter((slot) => slot.day_of_week === weekdayKey(addDate)) : []
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
@@ -614,33 +622,33 @@ export default function WranglerSchedule() {
       </div>
 
       <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 print:p-0 sm:px-6">
-        <div className="flex w-full max-w-[800px] items-center justify-between print:hidden">
+        <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
           <span className="font-display text-3xl font-light text-ink-900">
             {view === 'monthly' ? 'Monthly View' : 'Weekly View'}
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full items-center justify-between">
             {view === 'monthly' ? (
               <button
                 type="button"
                 onClick={switchToWeekly}
-                className="text-[14px] font-semibold text-ink-600 underline active:text-ink-900"
+                className="text-[14px] font-semibold text-accent-bright underline active:opacity-70"
               >
-                Weekly View
+                See Weekly View
               </button>
             ) : (
               <button
                 type="button"
                 onClick={switchToMonthly}
-                className="text-[14px] font-semibold text-ink-600 underline active:text-ink-900"
+                className="text-[14px] font-semibold text-accent-bright underline active:opacity-70"
               >
-                Monthly View
+                See Monthly View
               </button>
             )}
             <button
               type="button"
               onClick={() => window.print()}
               disabled={loading || Boolean(error)}
-              className="flex h-12 items-center justify-center rounded-md bg-accent-bright px-5 text-[16px] font-bold text-white active:opacity-90 disabled:opacity-50"
+              className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
             >
               Print
             </button>
@@ -847,19 +855,38 @@ export default function WranglerSchedule() {
 
         {!loading && !error && view === 'monthly' && (
           <div
-            className="wrangler-schedule-print hidden w-full flex-col overflow-hidden bg-white print:flex"
-            style={{ height: `${PAGE_HEIGHT_PX}px` }}
+            className="wrangler-schedule-print hidden w-full flex-col bg-white print:flex"
+            style={{ width: `${printableArea('landscape').width}px` }}
           >
-            <div className="flex items-baseline justify-between pb-2">
-              <h2 className="text-xl font-bold text-gray-900">Wrangler schedule &middot; {monthLabel(year, month)}</h2>
-            </div>
-            {monthNote && <p className="pb-2 text-sm italic text-gray-700">{monthNote.body}</p>}
-            <MonthCalendar
-              year={year}
-              month={month}
-              renderDay={renderPrintDay}
-              gridStyle={{ gridAutoRows: `${rowHeightPx}px`, fontSize: '8px', width: `${USABLE_WIDTH_PX}px` }}
-            />
+            {printPages.map((weeks, pageIndex) => (
+              <div key={pageIndex} className="flex w-full flex-col gap-2 break-after-page pb-4">
+                <div className="flex items-baseline justify-between pb-1">
+                  <h2 className="text-xl font-bold text-gray-900">Wrangler schedule &middot; {monthLabel(year, month)}</h2>
+                  <span className="text-sm font-semibold text-gray-700">{printPageRangeLabel(weeks)}</span>
+                </div>
+                {pageIndex === 0 && monthNote && <p className="pb-1 text-sm italic text-gray-700">{monthNote.body}</p>}
+                <div className="grid grid-cols-7">
+                  {CALENDAR_WEEKDAY_LABELS.map((label) => (
+                    <div
+                      key={label}
+                      className="px-1 py-1 text-center text-2xs font-bold uppercase tracking-wider text-ink-300"
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 border-l border-t border-gray-300 text-[10px] leading-[1.2]">
+                  {weeks.flat().map(({ date, inMonth }) => (
+                    <div
+                      key={isoDate(date)}
+                      className={`min-w-0 overflow-hidden border-b border-r border-gray-300 bg-white ${inMonth ? '' : 'bg-surface-canvas'}`}
+                    >
+                      {renderPrintDay(date, inMonth)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 

@@ -48,6 +48,27 @@ function weekRowsInMonth(year, month) {
 
 export { weekRowsInMonth }
 
+// Same cell math as MonthCalendar's own grid loop, grouped into week-rows
+// instead of a flat cell list — lets a caller paginate a month a few weeks
+// at a time (Wrangler Monthly print). Deliberately not extracted from
+// MonthCalendar itself (small accepted duplication) so MonthCalendar.jsx —
+// shared by on-screen Wrangler/Hand and Hand's print — stays untouched.
+export function monthGridWeeks(year, month) {
+  const firstWeekday = new Date(year, month, 1).getDay()
+  const rows = weekRowsInMonth(year, month)
+  const weeks = []
+  for (let row = 0; row < rows; row++) {
+    const week = []
+    for (let col = 0; col < 7; col++) {
+      const i = row * 7 + col
+      const date = new Date(year, month, i - firstWeekday + 1)
+      week.push({ date, inMonth: date.getMonth() === month })
+    }
+    weeks.push(week)
+  }
+  return weeks
+}
+
 // The full set of dates shown on the grid, including leading/trailing days
 // borrowed from adjacent months — used to bound date-range queries (one-off
 // assignments, day notes) so notes on a padding day still show up.
@@ -71,6 +92,30 @@ export function addDays(date, days) {
 
 export function weekdayDateLabel(date) {
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+}
+
+// Flattens grouped calendar entries (each group: { items: [...] }) into a
+// print-friendly list of header/item lines, capped at maxItems total items
+// (headers don't count against the cap) — used by the Monthly print day
+// cells for both Wrangler and Hand schedules so a time/shift-type header
+// always sits above its own list of names, matching the on-screen Monthly
+// grouping, instead of one flattened line per assignment. A busy day still
+// truncates gracefully (a trailing header with nothing shown under it is
+// dropped) rather than overflowing the fixed print row height.
+export function buildPrintLines(groups, maxItems) {
+  const lines = []
+  let shownCount = 0
+  for (const group of groups) {
+    if (shownCount >= maxItems) break
+    lines.push({ type: 'header', group })
+    for (const item of group.items) {
+      if (shownCount >= maxItems) break
+      lines.push({ type: 'item', group, item })
+      shownCount++
+    }
+  }
+  while (lines.length && lines[lines.length - 1].type === 'header') lines.pop()
+  return { lines, shownCount }
 }
 
 export function weekRangeLabel(weekStart) {
