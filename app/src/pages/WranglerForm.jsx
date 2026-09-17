@@ -49,6 +49,11 @@ export default function WranglerForm() {
   const [removePhoto, setRemovePhoto] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const initialStatusRef = useRef('active')
+  // Tracks a wrangler created by an earlier, partially-failed Save on this
+  // same /wranglers/new visit — id from useParams() never changes mid-session,
+  // so without this a retry after the wrangler insert succeeds but a later
+  // photo/schedule write fails would insert a second, orphaned wrangler row.
+  const createdWranglerIdRef = useRef(null)
 
   useEffect(() => {
     let active = true
@@ -227,10 +232,11 @@ export default function WranglerForm() {
       return
     }
 
-    let wranglerId = id
+    const existingWranglerId = id ?? createdWranglerIdRef.current
+    let wranglerId = existingWranglerId
 
-    if (isEdit) {
-      const { error: saveError } = await supabase.from('wranglers').update(payload).eq('id', id)
+    if (existingWranglerId) {
+      const { error: saveError } = await supabase.from('wranglers').update(payload).eq('id', existingWranglerId)
       if (saveError) {
         setError(saveError.message)
         setSaving(false)
@@ -248,6 +254,7 @@ export default function WranglerForm() {
         return
       }
       wranglerId = inserted.id
+      createdWranglerIdRef.current = inserted.id
     }
 
     if (photoFile) {
