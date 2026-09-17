@@ -31,3 +31,24 @@ export function wranglerShortName(wrangler) {
     .filter(Boolean)
     .join(' ')
 }
+
+export const ACTIVITY_LABELS = { riding: 'Riding', working: 'Working' }
+
+export function assignmentRowKey(assignment) {
+  return `${assignment.source}-${assignment.id ?? assignment.recurringAssignmentId}`
+}
+
+export function groupAssignmentsBySlot(assignments, timeSlotsById) {
+  const groups = {}
+  for (const assignment of assignments) {
+    const key = `${assignment.time_slot_id}-${assignment.activity}`
+    if (!groups[key]) groups[key] = { time_slot_id: assignment.time_slot_id, activity: assignment.activity, items: [] }
+    groups[key].items.push(assignment)
+  }
+  return Object.values(groups).sort((a, b) => {
+    const orderA = timeSlotsById[a.time_slot_id]?.sort_order ?? 0
+    const orderB = timeSlotsById[b.time_slot_id]?.sort_order ?? 0
+    if (orderA !== orderB) return orderA - orderB
+    return a.activity.localeCompare(b.activity)
+  })
+}

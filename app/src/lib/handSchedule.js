@@ -118,6 +118,15 @@ export function groupEffectiveShifts(shifts, shiftTypesById) {
     })
 }
 
+export function groupHeaderLabel(group, shiftTypesById) {
+  if (group.source === 'recurring') return shiftTypesById[group.shift_type_id]?.name ?? '—'
+  return group.title
+}
+
+export function shiftRowKey(shift) {
+  return shift.source === 'recurring' ? `recurring-${shift.recurringShiftId}` : `oneoff-${shift.eventId}-${shift.profile_id}`
+}
+
 // True if `date` falls within any of profileId's vacation ranges. A visual
 // overlay only — callers still render the shift, just dimmed with a 🌴.
 export function isOnVacation(profileId, date, vacationsByProfileId) {
