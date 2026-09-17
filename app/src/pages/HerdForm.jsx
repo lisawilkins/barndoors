@@ -99,6 +99,11 @@ export default function HerdForm() {
   const [buddyFilter, setBuddyFilter] = useState('')
   const [confirmingArchive, setConfirmingArchive] = useState(false)
   const initialStatusRef = useRef('active')
+  // Tracks a head created by an earlier, partially-failed Save on this
+  // same /herd/new visit — id from useParams() never changes mid-session,
+  // so without this a retry after the head insert succeeds but a later
+  // feed/photo/turnout write fails would insert a second, orphaned head row.
+  const createdHeadIdRef = useRef(null)
 
   function toggleSection(name) {
     setOpenSection((current) => (current === name ? null : name))
@@ -386,10 +391,11 @@ export default function HerdForm() {
       acquired_date: form.acquired_date || null,
     }
 
-    let headId = id
+    const existingHeadId = id ?? createdHeadIdRef.current
+    let headId = existingHeadId
 
-    if (isEdit) {
-      const { error: saveError } = await supabase.from('head').update(payload).eq('id', id)
+    if (existingHeadId) {
+      const { error: saveError } = await supabase.from('head').update(payload).eq('id', existingHeadId)
       if (saveError) {
         setError(saveError.message)
         setSaving(false)
@@ -407,6 +413,7 @@ export default function HerdForm() {
         return
       }
       headId = inserted.id
+      createdHeadIdRef.current = inserted.id
     }
 
     const feedPlanRequests = []

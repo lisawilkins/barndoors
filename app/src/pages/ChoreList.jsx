@@ -63,6 +63,8 @@ export default function ChoreList() {
 
   const saveTimer = useRef(null)
   const dirty = useRef(false)
+  const pendingSave = useRef(null)
+  const persistRef = useRef(null)
 
   // Portrait by default: it's the shape most people have loaded, and a chore
   // list is a tall narrow thing. Landscape gives wider lines and two columns,
@@ -158,10 +160,13 @@ export default function ChoreList() {
     [listId],
   )
 
+  persistRef.current = persist
+
   // Saves as you type, per the design's "Editing · saves as you type" header.
   // Debounced so a fast typist isn't issuing a write per keystroke.
   function queueSave(nextTitle, nextDescription, nextNodes) {
     dirty.current = true
+    pendingSave.current = [nextTitle, nextDescription, nextNodes]
     setSaveStatus('saving')
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(
@@ -170,7 +175,18 @@ export default function ChoreList() {
     )
   }
 
-  useEffect(() => () => clearTimeout(saveTimer.current), [])
+  // Leaving via the hamburger (or any other navigation) unmounts this page.
+  // Don't just cancel the debounce timer — flush the last keystrokes the
+  // same way Done does, or those ~700ms of typing never reach the database.
+  useEffect(
+    () => () => {
+      clearTimeout(saveTimer.current)
+      if (dirty.current && pendingSave.current) {
+        persistRef.current?.(...pendingSave.current)
+      }
+    },
+    [],
+  )
 
   function handleTitleChange(value) {
     setTitle(value)

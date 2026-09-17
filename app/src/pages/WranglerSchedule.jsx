@@ -105,6 +105,7 @@ export default function WranglerSchedule() {
 
   const [viewingNotesFor, setViewingNotesFor] = useState(null)
   const [deletingAssignment, setDeletingAssignment] = useState(null)
+  const [actionError, setActionError] = useState('')
   const [scrollToIso, setScrollToIso] = useState(null)
 
   // Weekly print is one page per day (portrait); Monthly print keeps the
@@ -356,15 +357,20 @@ export default function WranglerSchedule() {
     if (!deletingAssignment) return
     const { assignment, date } = deletingAssignment
 
+    let opError = null
+
     if (assignment.source === 'recurring') {
-      await supabase
+      const { error: skipError } = await supabase
         .from('wrangler_recurring_skips')
         .insert({ recurring_assignment_id: assignment.recurringAssignmentId, date: isoDate(date) })
+      opError = skipError
     } else {
-      await supabase.from('wrangler_assignments').delete().eq('id', assignment.id)
+      const { error: deleteError } = await supabase.from('wrangler_assignments').delete().eq('id', assignment.id)
+      opError = deleteError
     }
 
     setDeletingAssignment(null)
+    setActionError(opError ? opError.message : '')
     reload()
   }
 
@@ -394,18 +400,26 @@ export default function WranglerSchedule() {
     const existing = dayNotesByDate[editingDayNoteIso]
     const body = dayNoteDraft.trim()
 
+    let opError = null
+
     if (!body && existing) {
-      await supabase.from('wrangler_calendar_notes').delete().eq('id', existing.id)
+      const { error: deleteError } = await supabase.from('wrangler_calendar_notes').delete().eq('id', existing.id)
+      opError = deleteError
     } else if (body && existing) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('wrangler_calendar_notes')
         .update({ body, updated_at: new Date().toISOString() })
         .eq('id', existing.id)
+      opError = updateError
     } else if (body) {
-      await supabase.from('wrangler_calendar_notes').insert({ note_date: editingDayNoteIso, body })
+      const { error: insertError } = await supabase
+        .from('wrangler_calendar_notes')
+        .insert({ note_date: editingDayNoteIso, body })
+      opError = insertError
     }
 
     setEditingDayNoteIso(null)
+    setActionError(opError ? opError.message : '')
     reload()
   }
 
@@ -418,18 +432,26 @@ export default function WranglerSchedule() {
     const body = monthNoteDraft.trim()
     const monthIso = monthKey(year, month)
 
+    let opError = null
+
     if (!body && monthNote) {
-      await supabase.from('wrangler_calendar_notes').delete().eq('id', monthNote.id)
+      const { error: deleteError } = await supabase.from('wrangler_calendar_notes').delete().eq('id', monthNote.id)
+      opError = deleteError
     } else if (body && monthNote) {
-      await supabase
+      const { error: updateError } = await supabase
         .from('wrangler_calendar_notes')
         .update({ body, updated_at: new Date().toISOString() })
         .eq('id', monthNote.id)
+      opError = updateError
     } else if (body) {
-      await supabase.from('wrangler_calendar_notes').insert({ note_month: monthIso, body })
+      const { error: insertError } = await supabase
+        .from('wrangler_calendar_notes')
+        .insert({ note_month: monthIso, body })
+      opError = insertError
     }
 
     setEditingMonthNote(false)
+    setActionError(opError ? opError.message : '')
     reload()
   }
 
@@ -718,6 +740,7 @@ export default function WranglerSchedule() {
 
         {loading && <p className="text-[15px] text-ink-400 print:hidden">Loading…</p>}
         {error && <p className="text-[15px] text-red-600 print:hidden">{error}</p>}
+        {actionError && <p className="text-[15px] text-red-600 print:hidden">{actionError}</p>}
 
         {!loading && !error && view === 'monthly' && (
           <LandscapeContent className="print:hidden">
