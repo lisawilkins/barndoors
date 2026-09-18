@@ -34,6 +34,8 @@ _Last updated: reflects all decisions through Reports section._
 
 **Implementation:** `profiles_hand_visible()` is a `SECURITY DEFINER` Postgres function that exposes all columns except `emergency_contact` (always nulled). Hands query this function; managers query `profiles` directly. Do not attempt this restriction in app code alone — enforce at the database layer.
 
+**Writes:** insert, update, and delete on `profiles` are managers/admins only. `profiles_update` is `public.is_manager()` for both `USING` and `WITH CHECK` (see `20260921100000_profiles_update_managers_only.sql`). Hands have no self-edit screen and must not be able to change `role` on the shared hand-login row. Do not re-add `or id = auth.uid()`.
+
 ### ~~`shifts`~~ — dropped
 
 Superseded by **Part 5 — Hand Scheduling** below. The table was dead scaffolding —

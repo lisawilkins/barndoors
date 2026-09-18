@@ -105,9 +105,12 @@ create policy "profiles_insert_managers_only" on public.profiles
   for insert to authenticated
   with check (public.is_manager());
 
--- Managers can update anyone; a hand may update their own non-role fields
--- (kept simple for now: hands can update their own row, but not role/status —
--- flag if per-field enforcement here becomes necessary).
+-- Historical: this shipped as `is_manager() or id = auth.uid()`. The comment
+-- here used to say hands could update their own row "but not role/status" —
+-- RLS cannot do that (row-level, not column-level), and after the shared hand
+-- login a hand session could set `role` on that shared row. Replaced by
+-- 20260921100000_profiles_update_managers_only.sql (`is_manager()` only).
+-- Do not restore the self-update clause.
 create policy "profiles_update" on public.profiles
   for update to authenticated
   using (public.is_manager() or id = auth.uid())
