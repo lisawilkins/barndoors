@@ -93,8 +93,21 @@ export default function HandSchedule() {
       const startIso = isoDate(start)
       const endIso = isoDate(end)
 
+      // Managers see the base table directly; hands only have row-level
+      // access to their own profiles row (see "profiles_select" RLS policy),
+      // so they have to go through profiles_hand_visible() to resolve
+      // everyone else's name — same split as Hands.jsx.
+      const handsQuery = isManager
+        ? supabase.from('profiles').select('id, name').in('role', SCHEDULABLE_ROLES).eq('status', 'active').order('name')
+        : supabase
+            .rpc('profiles_hand_visible')
+            .select('id, name')
+            .in('role', SCHEDULABLE_ROLES)
+            .eq('status', 'active')
+            .order('name')
+
       const [handsResult, typesResult, recurringResult, skipsResult, eventsResult, vacationsResult] = await Promise.all([
-        supabase.from('profiles').select('id, name').in('role', SCHEDULABLE_ROLES).eq('status', 'active').order('name'),
+        handsQuery,
         // Not filtered to active — an archived type must still resolve
         // correctly for any existing recurring shift that references it
         // (archiving retires it from new picks, it doesn't erase history).
@@ -144,7 +157,7 @@ export default function HandSchedule() {
     return () => {
       active = false
     }
-  }, [year, month, view, weekStart, reloadToken])
+  }, [year, month, view, weekStart, reloadToken, isManager])
 
   function reload() {
     setReloadToken((current) => current + 1)
