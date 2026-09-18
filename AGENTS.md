@@ -30,18 +30,24 @@ targets, minimal typing, and high legibility over density or cleverness.
   (no separate `tailwind.config.js` unless explicitly added later). **Routing:** React Router
   (`react-router-dom`) for client-side navigation.
 - **Backend:** Supabase (Postgres + Auth + Storage + Row-Level Security). Schema
-  lives in `supabase/migrations/` (timestamped SQL files), with lookup seed data in
-  `supabase/seed.sql` and local CLI config in `supabase/config.toml`. Apply new
-  migrations to the linked remote project via `supabase db push` (after
-  `supabase link`). Local link state under `supabase/.temp/` is gitignored. A live
-  Supabase project is connected; the committed migrations reflect production.
+  lives in `supabase/migrations/` (timestamped SQL files), with lookup seed data
+  plus a **local-only made-up FPO barn** in `supabase/seed.sql` (see
+  `docs/local-demo.md`). `seed.sql` runs on local `supabase db reset` / first
+  `supabase start` only — **never** on `supabase db push`, and never against
+  production. Do not dump live barn rows into it. Local CLI config is
+  `supabase/config.toml`. Apply new migrations to the linked remote project via
+  `supabase db push` (after `supabase link`). Local link state under
+  `supabase/.temp/` is gitignored. A live Supabase project is connected; the
+  committed migrations reflect production.
 - **Deployment:** Netlify (frontend), Supabase (backend). Production site:
   `https://barn-doors.netlify.app`. Root `netlify.toml` sets `base = "app"`, `publish = "dist"`
   (publish is relative to base — **not** `app/dist`), and `command = "npm run build"`. Netlify
   needs an SPA redirect rule (`_redirects` or `netlify.toml`: `/*  /index.html  200`) so
   client-side routes don't 404 on refresh/deep link.
   - **Env vars:** `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (see `app/.env.example`).
-    Local dev copies that file to `app/.env` (gitignored). Production values live in Netlify
+    Local dev against the live project copies that file to `app/.env` (gitignored).
+    Local dev against `supabase start` copies `app/env.local-supabase.example` to
+    `app/.env.development.local` so the live `.env` is left alone. Production values live in Netlify
     **Site configuration → Environment variables**, never committed. Use the real project URL
     and key from Supabase (Project Settings → API) — not the placeholders in the example file.
     Newer Supabase projects may use a `sb_publishable_...` key; it still goes in

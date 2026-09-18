@@ -6,6 +6,19 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-09-18 — Local fake barn seed for case-study screenshots
+
+Needed a full-looking app for screenshots and recordings without a second
+hosted demo and without copying the live barn. `supabase/seed.sql` now fills a
+**local** `supabase db reset` with invented people, horses, wranglers (fake
+kid names, no photos), chores, and September 2026 calendar rows. How to boot
+it, and the local-only logins, live in `docs/local-demo.md`. The seed refuses
+to run if the database already has herd/people data, and `db push` still does
+not load `seed.sql`. Production keys in `app/.env` stay put — point Vite at
+local Supabase with `app/.env.development.local` instead.
+
+---
+
 ## 2026-08-25 — Added an "admin" role, separate from manager but with the same permissions
 
 Managers and admins were being conflated — Lisa Wilkins (the technology admin) had a
