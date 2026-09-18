@@ -21,14 +21,6 @@ export function formatDays(days) {
     .join(', ')
 }
 
-function daysKey(days) {
-  return sortDays(days).join(',')
-}
-
-function memberKey(ids) {
-  return [...ids].sort().join(',')
-}
-
 export function blankTurnoutRow() {
   return {
     key: crypto.randomUUID(),
@@ -68,67 +60,22 @@ export async function loadTurnoutRowsForHead(supabase, headId) {
 }
 
 export async function saveTurnoutScheduleForHead(supabase, headId, rows, profileId) {
-  const { error: removeError } = await supabase
-    .from('turnout_group_members')
-    .delete()
-    .eq('head_id', headId)
+  // Match-then-drop, in one transaction (save_turnout_schedule_for_head). The
+  // old path deleted this animal from every group *before* looking for a match,
+  // so the match never succeeded and every Save created a duplicate group.
+  const validRows = rows
+    .filter((row) => row.location_id && row.days.length > 0)
+    .map((row) => ({
+      location_id: row.location_id,
+      days: sortDays(row.days),
+      buddy_ids: [...new Set(row.buddy_ids)],
+    }))
 
-  if (removeError) return removeError
+  const { error } = await supabase.rpc('save_turnout_schedule_for_head', {
+    p_head_id: headId,
+    p_rows: validRows,
+    p_updated_by: profileId,
+  })
 
-  const validRows = rows.filter((row) => row.location_id && row.days.length > 0)
-
-  for (const row of validRows) {
-    const sortedDays = sortDays(row.days)
-    const memberIds = [...new Set([headId, ...row.buddy_ids])]
-
-    const { data: candidateGroups, error: groupsError } = await supabase
-      .from('turnout_groups')
-      .select('id, days_of_week, turnout_group_members ( head_id )')
-      .eq('location_id', row.location_id)
-
-    if (groupsError) return groupsError
-
-    const targetDayKey = daysKey(sortedDays)
-    const targetMemberKey = memberKey(memberIds)
-
-    let group = candidateGroups?.find((candidate) => {
-      const candidateDays = daysKey(candidate.days_of_week ?? [])
-      const candidateMembers = memberKey(
-        (candidate.turnout_group_members ?? []).map((member) => member.head_id),
-      )
-      return candidateDays === targetDayKey && candidateMembers === targetMemberKey
-    })
-
-    if (!group) {
-      const { data: newGroup, error: insertError } = await supabase
-        .from('turnout_groups')
-        .insert({
-          location_id: row.location_id,
-          days_of_week: sortedDays,
-          updated_by: profileId,
-          updated_at: new Date().toISOString(),
-        })
-        .select('id')
-        .single()
-
-      if (insertError) return insertError
-      group = newGroup
-
-      const { error: membersError } = await supabase.from('turnout_group_members').insert(
-        memberIds.map((memberId) => ({ group_id: group.id, head_id: memberId })),
-      )
-
-      if (membersError) return membersError
-    } else {
-      for (const memberId of memberIds) {
-        const { error: memberError } = await supabase.from('turnout_group_members').upsert(
-          { group_id: group.id, head_id: memberId },
-          { onConflict: 'group_id,head_id' },
-        )
-        if (memberError) return memberError
-      }
-    }
-  }
-
-  return null
+  return error ?? null
 }
