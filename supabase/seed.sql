@@ -93,98 +93,99 @@ on conflict (name) do nothing;
 --   Manager tab:  manager@fpo.local
 --   Manager tab:  admin@fpo.local   (same permissions; also schedulable)
 --   Hand tab:     password only — email is the shared HAND_LOGIN_EMAIL
+--
+-- One DO block on purpose: the CLI sends seed.sql in batches on separate
+-- sessions, so a pg_temp helper created in one statement is gone by the next
+-- (`schema "pg_temp" does not exist`). Committed public/auth rows are fine
+-- across batches; session-local objects are not.
+-- handle_new_user() inserts a profiles row (role = hand) for each auth user.
 -- -----------------------------------------------------------------------------
 
-create or replace function pg_temp.fpo_create_auth_user(
-  p_id uuid,
-  p_email text,
-  p_password text,
-  p_full_name text
-) returns void
-language plpgsql
-as $$
+do $$
+declare
+  r record;
 begin
-  insert into auth.users (
-    instance_id,
-    id,
-    aud,
-    role,
-    email,
-    encrypted_password,
-    email_confirmed_at,
-    confirmation_token,
-    email_change,
-    email_change_token_new,
-    email_change_token_current,
-    recovery_token,
-    phone_change,
-    phone_change_token,
-    raw_app_meta_data,
-    raw_user_meta_data,
-    created_at,
-    updated_at
-  ) values (
-    '00000000-0000-0000-0000-000000000000',
-    p_id,
-    'authenticated',
-    'authenticated',
-    p_email,
-    extensions.crypt(p_password, extensions.gen_salt('bf')),
-    now(),
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '',
-    '{"provider":"email","providers":["email"]}'::jsonb,
-    jsonb_build_object('full_name', p_full_name),
-    now(),
-    now()
-  );
+  for r in
+    select * from (values
+      (
+        '00000000-f0f0-4000-8000-000000000001'::uuid,
+        'manager@fpo.local',
+        'Robin Hale'
+      ),
+      (
+        '00000000-f0f0-4000-8000-000000000002'::uuid,
+        'admin@fpo.local',
+        'Dana West'
+      ),
+      (
+        '00000000-f0f0-4000-8000-000000000003'::uuid,
+        'hand@barndoors.internal',
+        'Shared hand login'
+      )
+    ) as t(id, email, full_name)
+  loop
+    insert into auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      confirmation_token,
+      email_change,
+      email_change_token_new,
+      email_change_token_current,
+      recovery_token,
+      phone_change,
+      phone_change_token,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at
+    ) values (
+      '00000000-0000-0000-0000-000000000000',
+      r.id,
+      'authenticated',
+      'authenticated',
+      r.email,
+      extensions.crypt('fpo-local-only', extensions.gen_salt('bf')),
+      now(),
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '',
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('full_name', r.full_name),
+      now(),
+      now()
+    );
 
-  insert into auth.identities (
-    id,
-    user_id,
-    provider,
-    provider_id,
-    identity_data,
-    last_sign_in_at,
-    created_at,
-    updated_at
-  ) values (
-    gen_random_uuid(),
-    p_id,
-    'email',
-    p_id::text,
-    jsonb_build_object('sub', p_id::text, 'email', p_email),
-    now(),
-    now(),
-    now()
-  );
+    insert into auth.identities (
+      id,
+      user_id,
+      provider,
+      provider_id,
+      identity_data,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) values (
+      gen_random_uuid(),
+      r.id,
+      'email',
+      r.id::text,
+      jsonb_build_object('sub', r.id::text, 'email', r.email),
+      now(),
+      now(),
+      now()
+    );
+  end loop;
 end;
 $$;
-
--- handle_new_user() inserts a profiles row (role = hand) for each auth user.
-select pg_temp.fpo_create_auth_user(
-  '00000000-f0f0-4000-8000-000000000001',
-  'manager@fpo.local',
-  'fpo-local-only',
-  'Robin Hale'
-);
-select pg_temp.fpo_create_auth_user(
-  '00000000-f0f0-4000-8000-000000000002',
-  'admin@fpo.local',
-  'fpo-local-only',
-  'Dana West'
-);
-select pg_temp.fpo_create_auth_user(
-  '00000000-f0f0-4000-8000-000000000003',
-  'hand@barndoors.internal',
-  'fpo-local-only',
-  'Shared hand login'
-);
 
 update public.profiles
 set

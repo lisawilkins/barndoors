@@ -6,6 +6,17 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-09-18 — Local seed failed across CLI batches
+
+`supabase db reset` got past migrations, then died while seeding:
+`schema "pg_temp" does not exist`. The CLI sends `seed.sql` in batches on
+separate sessions. A temp helper for the fake logins lived in `pg_temp`,
+which does not survive the next batch. Those inserts now live in one
+ordinary `DO` block (no temp schema). Still local-only — do not
+`db reset --linked`.
+
+---
+
 ## 2026-09-18 — Empty local database couldn't finish migrations
 
 `supabase start` on a fresh local stack died in
