@@ -19,10 +19,10 @@ import {
 // Monthly print paginates a fixed number of week-rows per physical page so
 // every assignment shows (no per-day truncation) — content grows naturally
 // via CSS Grid's default row-stretch, same as the on-screen Monthly cell.
-// 2 is a starting point per the product ask ("if that means two weeks per
-// page, let's try that"); retune after checking print preview against a
-// realistically busy month.
-const PRINT_WEEKS_PER_PAGE = 2
+// 5 is confirmed by an actual print test at this font/border sizing — most
+// months (4-5 week-rows) land on one sheet; a 6-row month spills one week
+// onto a second page. Retune if the row content (font size, borders) changes.
+const PRINT_WEEKS_PER_PAGE = 5
 
 function printPageRangeLabel(weekRows) {
   const start = weekRows[0][0].date

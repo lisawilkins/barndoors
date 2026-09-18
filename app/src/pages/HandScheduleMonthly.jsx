@@ -1,6 +1,8 @@
+import { useMemo } from 'react'
 import MonthCalendar from '../components/MonthCalendar'
 import LandscapeContent from '../components/LandscapeContent'
-import { isoDate, monthLabel, weekRowsInMonth, buildPrintLines } from '../lib/calendarSchedule'
+import { printableArea } from '../lib/pageSetup'
+import { isoDate, monthLabel, monthGridWeeks, CALENDAR_WEEKDAY_LABELS, buildPrintLines } from '../lib/calendarSchedule'
 import {
   effectiveShiftsForDate,
   groupEffectiveShifts,
@@ -9,19 +11,25 @@ import {
   shiftRowKey,
 } from '../lib/handSchedule'
 
-// Print sizing mirrors WranglerSchedule: same letter-landscape @page
-// rule (index.css) for Monthly. Hands have no month/day standing
-// notes (unlike Wranglers), so there's no note-row height to budget here.
-const PX_PER_IN = 96
-const PAGE_HEIGHT_IN = 8.5
-const PAGE_WIDTH_IN = 11
-const MARGIN_IN = 0.35
-const PAGE_HEIGHT_PX = (PAGE_HEIGHT_IN - MARGIN_IN * 2) * PX_PER_IN
-const USABLE_WIDTH_PX = (PAGE_WIDTH_IN - MARGIN_IN * 2) * PX_PER_IN
-const PRINT_MAX_ITEMS_PER_DAY = 4
-const TITLE_ROW_PX = 40
-const WEEKDAY_HEADER_ROW_PX = 24
-const PRINT_SAFETY_BUFFER_PX = 12
+// Monthly print paginates a fixed number of week-rows per physical page so
+// every shift shows (no per-day truncation) — content grows naturally via
+// CSS Grid's default row-stretch, same as the on-screen Monthly cell.
+// Mirrors WranglerSchedule's Monthly print exactly (5 weeks/page, bordered
+// grid, 10px type, confirmed by an actual print test) — see
+// WranglerScheduleMonthly.jsx. Hands have no month/day standing notes
+// (unlike Wranglers), so there's no note row here.
+const PRINT_WEEKS_PER_PAGE = 5
+
+function printPageRangeLabel(weekRows) {
+  const start = weekRows[0][0].date
+  const end = weekRows[weekRows.length - 1][6].date
+  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const endLabel =
+    start.getMonth() === end.getMonth()
+      ? end.toLocaleDateString(undefined, { day: 'numeric' })
+      : end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  return `${startLabel} – ${endLabel}`
+}
 
 // Monthly cells are a read-only summary — tapping one drills into the
 // Weekly view for that day, where all editing happens. Grouped by shift
@@ -117,10 +125,10 @@ export function HandScheduleMonthly({
 }
 
 // Grouped by shift type / one-off event, same as the on-screen Monthly
-// cell — the shift type or event title sits as its own header
-// line above the hands assigned to it, rather than repeating that info on
-// every name's own line. Hands still cap at 4 names then "+N more"; wrangler
-// monthly print shows everyone. That product difference is intentional.
+// cell and Wrangler's Monthly print — the shift type or event title sits as
+// its own header line above the hands assigned to it. No cap — print shows
+// everyone, no truncation (unlike the old PRINT_MAX_ITEMS_PER_DAY +
+// "+N more" behavior this replaces).
 export function HandScheduleMonthlyPrint({
   year,
   month,
@@ -131,17 +139,19 @@ export function HandScheduleMonthlyPrint({
   eventsByDate,
   vacationsByProfileId,
 }) {
-  const printTitleBlockPx = TITLE_ROW_PX + WEEKDAY_HEADER_ROW_PX + PRINT_SAFETY_BUFFER_PX
-  const rowHeightPx = (PAGE_HEIGHT_PX - printTitleBlockPx) / weekRowsInMonth(year, month)
+  const monthWeeks = useMemo(() => monthGridWeeks(year, month), [year, month])
+  const printPages = []
+  for (let i = 0; i < monthWeeks.length; i += PRINT_WEEKS_PER_PAGE) {
+    printPages.push(monthWeeks.slice(i, i + PRINT_WEEKS_PER_PAGE))
+  }
 
   function renderPrintDay(date, inMonth) {
     const shifts = effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById)
     const groups = groupEffectiveShifts(shifts, shiftTypesById)
-    const { lines, shownCount } = buildPrintLines(groups, PRINT_MAX_ITEMS_PER_DAY)
-    const hiddenCount = shifts.length - shownCount
+    const { lines } = buildPrintLines(groups, Infinity)
 
     return (
-      <div className="flex h-full flex-col gap-0.5 overflow-hidden p-1" style={{ opacity: inMonth ? 1 : 0.35 }}>
+      <div className="flex h-full flex-col gap-px overflow-hidden px-1 py-0.5" style={{ opacity: inMonth ? 1 : 0.35 }}>
         <span className="font-bold text-gray-900">{date.getDate()}</span>
         {lines.map((line) => {
           if (line.type === 'header') {
@@ -149,7 +159,7 @@ export function HandScheduleMonthlyPrint({
               <div key={`header-${line.group.key}`} className="flex items-baseline justify-between gap-1">
                 <span className="truncate font-bold text-gray-900">{groupHeaderLabel(line.group, shiftTypesById)}</span>
                 {line.group.source === 'oneoff' && line.group.event_time && (
-                  <span className="flex-shrink-0 text-gray-600">{line.group.event_time}</span>
+                  <span className="flex-shrink-0 font-bold text-gray-600">{line.group.event_time}</span>
                 )}
               </div>
             )
@@ -164,25 +174,43 @@ export function HandScheduleMonthlyPrint({
             </span>
           )
         })}
-        {hiddenCount > 0 && <span className="text-gray-500">+{hiddenCount} more</span>}
       </div>
     )
   }
 
   return (
     <div
-      className="hand-schedule-print hidden w-full flex-col overflow-hidden bg-white print:flex"
-      style={{ height: `${PAGE_HEIGHT_PX}px` }}
+      className="hand-schedule-print hidden w-full flex-col bg-white print:flex"
+      style={{ width: `${printableArea('landscape').width}px` }}
     >
-      <div className="flex items-baseline justify-between pb-2">
-        <h2 className="text-xl font-bold text-gray-900">Hand schedule &middot; {monthLabel(year, month)}</h2>
-      </div>
-      <MonthCalendar
-        year={year}
-        month={month}
-        renderDay={renderPrintDay}
-        gridStyle={{ gridAutoRows: `${rowHeightPx}px`, fontSize: '8px', width: `${USABLE_WIDTH_PX}px` }}
-      />
+      {printPages.map((weeks, pageIndex) => (
+        <div key={pageIndex} className="flex w-full flex-col gap-2 break-after-page pb-4">
+          <div className="flex items-baseline justify-between pb-1">
+            <h2 className="text-xl font-bold text-gray-900">Hand schedule &middot; {monthLabel(year, month)}</h2>
+            <span className="text-sm font-semibold text-gray-700">{printPageRangeLabel(weeks)}</span>
+          </div>
+          <div className="grid grid-cols-7">
+            {CALENDAR_WEEKDAY_LABELS.map((label) => (
+              <div
+                key={label}
+                className="px-1 py-1 text-center text-2xs font-bold uppercase tracking-wider text-ink-300"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 border-l border-t border-gray-300 text-[10px] leading-[1.2]">
+            {weeks.flat().map(({ date, inMonth }) => (
+              <div
+                key={isoDate(date)}
+                className={`min-w-0 overflow-hidden border-b border-r border-gray-300 bg-white ${inMonth ? '' : 'bg-surface-canvas'}`}
+              >
+                {renderPrintDay(date, inMonth)}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
