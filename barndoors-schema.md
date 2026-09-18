@@ -155,6 +155,15 @@ Many-to-many — a head can belong to multiple groups; a group can have just one
 
 *(Actual turning-out of a group is a **chore**, not logged here — see Part 2.)*
 
+### `save_turnout_schedule_for_head(p_head_id uuid, p_rows jsonb, p_updated_by uuid)`
+Saves one animal's turnout rows in a single transaction. Looks up a matching group (same location, same days, same exact member set **including this animal**) *before* removing any memberships, then deletes only memberships the new form state drops. Creates a group only when no match exists. If this save was the last member of a group, that empty group is removed.
+
+`p_rows` is a JSON array of `{ "location_id": "<uuid>", "days": ["mon", …], "buddy_ids": ["<uuid>", …] }`. Rows without a location or days are ignored, matching the Herd form.
+
+**`security invoker`** — the managers-only RLS policies on `turnout_groups` and `turnout_group_members` are the authorization. Do not change it to `security definer`.
+
+`execute` is revoked from **both** `public` and `anon` (Supabase's default privileges grant it to `anon` by name, so revoking from `public` alone does nothing) and granted only to `authenticated`. A hand is `authenticated` too; RLS is what makes their call a no-op / failed write that rolls back.
+
 ---
 
 ## Part 2 — Chores
