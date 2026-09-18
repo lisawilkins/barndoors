@@ -48,6 +48,25 @@ end;
 $$;
 
 -- -----------------------------------------------------------------------------
+-- Data API grants (local CLI only).
+--
+-- apply_standard_policies() creates RLS, not table GRANTs. Hosted Supabase
+-- used to auto-GRANT every public table to `authenticated`; local CLI 2.x
+-- does not (config.toml `auto_expose_new_tables` is unset). Without these
+-- GRANTs, PostgREST returns "permission denied for table ..." on Herd,
+-- Wranglers, Chores, Reports — RLS never runs. Hands still loaded because
+-- `profiles_hand_visible()` has an explicit EXECUTE grant, so a session
+-- that failed to read `profiles` (and therefore looked like a hand) could
+-- still open the roster via that RPC.
+-- RLS stays the real restriction; this only lets `authenticated` reach the
+-- tables. Not applied by `db push`.
+-- -----------------------------------------------------------------------------
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select, update on all sequences in schema public to authenticated;
+grant execute on all functions in schema public to authenticated;
+
+-- -----------------------------------------------------------------------------
 -- Lookup lists (starting set, not hardcoded enums). Managers can add more in
 -- the app. Kept from the original seed so a local reset still has feed types
 -- and turnout locations even without the FPO rows below.
@@ -184,36 +203,33 @@ begin
       now()
     );
   end loop;
+
+  -- Same transaction as the auth insert: handle_new_user() always creates
+  -- role=hand, and is_manager() reads profiles.role. Promote here so a later
+  -- seed batch cannot leave Robin as a hand.
+  update public.profiles
+  set role = 'manager', name = 'Robin Hale', phone = '5550101001',
+      email = 'manager@fpo.local', status = 'active'
+  where id = '00000000-f0f0-4000-8000-000000000001';
+
+  update public.profiles
+  set role = 'admin', name = 'Dana West', phone = '5550101002',
+      email = 'admin@fpo.local', status = 'active'
+  where id = '00000000-f0f0-4000-8000-000000000002';
+
+  update public.profiles
+  set role = 'hand', name = 'Shared hand login',
+      email = 'hand@barndoors.internal', status = 'inactive'
+  where id = '00000000-f0f0-4000-8000-000000000003';
+
+  if not exists (
+    select 1 from public.profiles
+    where id = '00000000-f0f0-4000-8000-000000000001' and role = 'manager'
+  ) then
+    raise exception 'FPO manager profile was not promoted; is_manager() would be false.';
+  end if;
 end;
 $$;
-
-update public.profiles
-set
-  role = 'manager',
-  name = 'Robin Hale',
-  phone = '5550101001',
-  email = 'manager@fpo.local',
-  status = 'active'
-where id = '00000000-f0f0-4000-8000-000000000001';
-
-update public.profiles
-set
-  role = 'admin',
-  name = 'Dana West',
-  phone = '5550101002',
-  email = 'admin@fpo.local',
-  status = 'active'
-where id = '00000000-f0f0-4000-8000-000000000002';
-
--- Shared Hand login: must exist so /login Hand works, but keep it off the
--- roster so screenshots show named people only.
-update public.profiles
-set
-  role = 'hand',
-  name = 'Shared hand login',
-  email = 'hand@barndoors.internal',
-  status = 'inactive'
-where id = '00000000-f0f0-4000-8000-000000000003';
 
 -- Named hands are directory records only — no auth.users row.
 insert into public.profiles (id, role, name, phone, email, status) values

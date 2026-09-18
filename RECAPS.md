@@ -6,6 +6,21 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-09-18 — Local app said permission denied on every table except Hands
+
+After the fake barn seeded, Herd / Wranglers / Chores / Reports returned
+PostgREST `permission denied for table ...`. Hands still loaded. That is a
+missing **GRANT**, not RLS (RLS would look empty). Local CLI no longer
+auto-exposes public tables to `authenticated`; production still has those
+privileges from the old default. Migrations only created RLS policies.
+Hands worked because `profiles_hand_visible()` already had EXECUTE, so the
+roster RPC succeeded even when table SELECT did not. Seed now GRANTs
+select/insert/update/delete on public tables (and sequences/functions) to
+`authenticated`, and promotes the FPO manager in the same transaction as
+the auth user so `is_manager()` is true. Local `db reset` only.
+
+---
+
 ## 2026-09-18 — Local seed failed across CLI batches
 
 `supabase db reset` got past migrations, then died while seeding:

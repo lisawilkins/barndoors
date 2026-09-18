@@ -74,6 +74,8 @@ Invented names throughout. Wranglers are portrayed as kids; no photos.
 
 Calendars are seeded around **September 2026**. Jump the monthly view there if “today” on your machine is a different month.
 
+If a signed-in page says **permission denied for table**, the local Data API is missing table GRANTs from an older seed. Pull this branch and run `supabase db reset` again (never `--linked`).
+
 ## Do not
 
 - `supabase db reset --linked`

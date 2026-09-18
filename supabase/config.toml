@@ -21,6 +21,8 @@ max_rows = 1000
 # without explicit GRANTs. When unset, new entities are NOT auto-exposed, matching the new cloud
 # default. Set to `true` to keep the legacy behaviour of auto-exposing new entities; this is
 # deprecated and the field is removed on 2026-10-30 once the always-revoked behaviour is permanent.
+# Local screenshot seed grants `authenticated` on public tables in seed.sql instead
+# (production already has those privileges from the old auto-expose default).
 # auto_expose_new_tables = true
 
 [api.tls]
