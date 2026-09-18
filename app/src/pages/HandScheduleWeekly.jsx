@@ -107,10 +107,12 @@ export function HandScheduleWeekly({
   )
 }
 
-// One page per day: a bold date header, then each shift type's (or one-off
-// event's) hands as a plain list — no add/delete icons, since those are
-// screen-only controls. Same fixed-size, never-shrunk approach as the
-// Wrangler weekly print.
+// A Hand's daily list is much shorter than a Wrangler's (a handful of names
+// vs. multiple time-slotted activities), so unlike WranglerScheduleWeeklyPrint's
+// fixed one-day-per-sheet layout, this gangs as many days as fit onto a
+// page and only overflows to a new one when it runs out of room — plain CSS
+// print pagination (`break-inside-avoid` per day) rather than a forced
+// per-day split. No add/delete icons, since those are screen-only controls.
 export function HandScheduleWeeklyPrint({
   weekDays,
   weekStart,
@@ -126,11 +128,10 @@ export function HandScheduleWeeklyPrint({
     const groups = groupEffectiveShifts(shifts, shiftTypesById)
 
     return (
-      <div key={isoDate(date)} className="flex w-full flex-col gap-3 break-after-page pb-6">
-        <div className="flex flex-col gap-0.5 border-b-2 border-gray-900 pb-2">
-          <span className="text-sm font-bold text-gray-900">{weekRangeLabel(weekStart)}</span>
-          <span className="text-lg font-bold text-gray-900">{weekdayDateLabel(date)}</span>
-        </div>
+      <div key={isoDate(date)} className="flex w-full break-inside-avoid flex-col gap-3 pb-5">
+        <span className="border-b-2 border-gray-900 pb-2 text-lg font-bold text-gray-900">
+          {weekdayDateLabel(date)}
+        </span>
 
         {groups.map((group) => (
           <div key={group.key} className="flex flex-col">
@@ -148,7 +149,7 @@ export function HandScheduleWeeklyPrint({
               const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
               return (
                 <div key={shiftRowKey(shift)} className="flex break-inside-avoid gap-2 border-b border-gray-200 py-1 text-sm">
-                  <span className="flex-1 text-gray-900">{hand?.name ?? 'Unknown'}</span>
+                  <span className="text-gray-900">{hand?.name ?? 'Unknown'}</span>
                   {onVacation && <span className="text-gray-600">🌴 vacation</span>}
                 </div>
               )
@@ -161,9 +162,12 @@ export function HandScheduleWeeklyPrint({
 
   return (
     <div
-      className="hand-schedule-print-week hidden flex-col bg-white print:flex"
+      className="hand-schedule-print-week hidden w-full flex-col bg-white print:flex"
       style={{ width: `${printableArea('portrait').width}px` }}
     >
+      <div className="pb-3">
+        <span className="text-sm font-bold text-gray-700">{weekRangeLabel(weekStart)}</span>
+      </div>
       {weekDays
         .filter(
           (date) =>
