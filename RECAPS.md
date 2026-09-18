@@ -6,6 +6,57 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-09-18 — Local app said permission denied on every table except Hands
+
+After the fake barn seeded, Herd / Wranglers / Chores / Reports returned
+PostgREST `permission denied for table ...`. Hands still loaded. That is a
+missing **GRANT**, not RLS (RLS would look empty). Local CLI no longer
+auto-exposes public tables to `authenticated`; production still has those
+privileges from the old default. Migrations only created RLS policies.
+Hands worked because `profiles_hand_visible()` already had EXECUTE, so the
+roster RPC succeeded even when table SELECT did not. Seed now GRANTs
+select/insert/update/delete on public tables (and sequences/functions) to
+`authenticated`, and promotes the FPO manager in the same transaction as
+the auth user so `is_manager()` is true. Local `db reset` only.
+
+---
+
+## 2026-09-18 — Local seed failed across CLI batches
+
+`supabase db reset` got past migrations, then died while seeding:
+`schema "pg_temp" does not exist`. The CLI sends `seed.sql` in batches on
+separate sessions. A temp helper for the fake logins lived in `pg_temp`,
+which does not survive the next batch. Those inserts now live in one
+ordinary `DO` block (no temp schema). Still local-only — do not
+`db reset --linked`.
+
+---
+
+## 2026-09-18 — Empty local database couldn't finish migrations
+
+`supabase start` on a fresh local stack died in
+`20260722100000_add_head_sort_order.sql`: with no `head` rows,
+`setval(head_sort_order_seq, 0)` is out of bounds (sequences start at 1).
+Production never hit this because it already had animals. The migration now
+sets the sequence to 1 on an empty table (next animal still gets 1) and
+still to max / next = max+1 when rows exist. The screenshot seed is
+unchanged. Local only — do not `db reset --linked`.
+
+---
+
+## 2026-09-18 — Local fake barn seed for case-study screenshots
+
+Needed a full-looking app for screenshots and recordings without a second
+hosted demo and without copying the live barn. `supabase/seed.sql` now fills a
+**local** `supabase db reset` with invented people, horses, wranglers (fake
+kid names, no photos), chores, and September 2026 calendar rows. How to boot
+it, and the local-only logins, live in `docs/local-demo.md`. The seed refuses
+to run if the database already has herd/people data, and `db push` still does
+not load `seed.sql`. Production keys in `app/.env` stay put — point Vite at
+local Supabase with `app/.env.development.local` instead.
+
+---
+
 ## 2026-08-25 — Added an "admin" role, separate from manager but with the same permissions
 
 Managers and admins were being conflated — Lisa Wilkins (the technology admin) had a

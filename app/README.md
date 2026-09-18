@@ -5,8 +5,19 @@ project context and locked-in tech stack decisions).
 
 ## Getting started
 
+Against the **live** project:
+
 ```bash
 cp .env.example .env   # then fill in the real Supabase URL and anon key
+npm install
+npm run dev
+```
+
+Against **local** Supabase (fake barn for screenshots — see
+`docs/local-demo.md` at the repo root). This does not replace `.env`:
+
+```bash
+cp env.local-supabase.example .env.development.local
 npm install
 npm run dev
 ```
