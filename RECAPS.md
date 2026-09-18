@@ -6,6 +6,18 @@ Newest entries at the top. This is a history, not a spec — for current rules s
 
 ---
 
+## 2026-09-18 — Empty local database couldn't finish migrations
+
+`supabase start` on a fresh local stack died in
+`20260722100000_add_head_sort_order.sql`: with no `head` rows,
+`setval(head_sort_order_seq, 0)` is out of bounds (sequences start at 1).
+Production never hit this because it already had animals. The migration now
+sets the sequence to 1 on an empty table (next animal still gets 1) and
+still to max / next = max+1 when rows exist. The screenshot seed is
+unchanged. Local only — do not `db reset --linked`.
+
+---
+
 ## 2026-09-18 — Local fake barn seed for case-study screenshots
 
 Needed a full-looking app for screenshots and recordings without a second
