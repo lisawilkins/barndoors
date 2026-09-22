@@ -28,39 +28,66 @@ export function TextAreaField({ label, className = '', ...props }) {
 // MM/DD/YYYY once a valid date lands. `value`/`onChange` deal in YYYY-MM-DD
 // (what's stored, and what the native date input uses) — only the on-screen
 // text differs.
+//
+// The calendar corner is a real `input[type=date]` sitting on top of the
+// icon, transparent but full size, so a tap lands on the date input itself.
+// That is the only thing that opens the wheel on an iPhone: iOS Safari has
+// never supported `showPicker()`, and `focus()` on an off-screen input does
+// nothing there, so the old hidden one-pixel input left iPhone users with a
+// field they could only type into. Browsers that do have `showPicker()`
+// (Chrome, Firefox, Safari 17.4+ on the Mac) still need the explicit call,
+// since clicking a date input doesn't open the picker on its own.
 export function DateField({ label, value, onChange, className = '' }) {
   const [text, setText] = useState(() => formatDateUS(value))
   const [invalid, setInvalid] = useState(false)
-  const nativeInputRef = useRef(null)
+  const dateInputRef = useRef(null)
+  // The last value this field itself put out. Lets the effect below tell a
+  // change coming from the form apart from the echo of our own onChange —
+  // without it, reporting bad input as empty would immediately wipe the text
+  // the reader typed and the error explaining it.
+  const emittedValue = useRef(value)
 
   useEffect(() => {
+    if (value === emittedValue.current) return
+    emittedValue.current = value
     setText(formatDateUS(value))
     setInvalid(false)
   }, [value])
 
+  function emit(next) {
+    emittedValue.current = next
+    onChange(next)
+  }
+
   function commit(raw) {
     if (!raw.trim()) {
       setInvalid(false)
-      onChange('')
+      setText('')
+      emit('')
       return
     }
     const iso = parseFlexibleDate(raw)
     if (!iso) {
+      // Don't leave the previous date sitting in the form behind text that
+      // says something else — saving now would quietly store the old date.
       setInvalid(true)
+      emit('')
       return
     }
     setInvalid(false)
-    onChange(iso)
+    emit(iso)
     setText(formatDateUS(iso))
   }
 
   function openPicker() {
-    const input = nativeInputRef.current
-    if (!input) return
-    if (typeof input.showPicker === 'function') {
+    const input = dateInputRef.current
+    if (typeof input?.showPicker !== 'function') return
+    // Throws if the browser decides this isn't a user gesture; the tap has
+    // already focused the date input either way.
+    try {
       input.showPicker()
-    } else {
-      input.focus()
+    } catch {
+      // Ignored on purpose — see above.
     }
   }
 
@@ -79,23 +106,22 @@ export function DateField({ label, value, onChange, className = '' }) {
           }}
           className={`h-14 w-full min-w-0 pr-12 ${controlClass} ${invalid ? 'border-red-500' : ''}`}
         />
-        <button
-          type="button"
-          onClick={openPicker}
-          aria-label={`Choose ${label.toLowerCase()} from calendar`}
-          className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-300"
-        >
-          <span className="material-symbols-outlined text-[20px]">calendar_month</span>
-        </button>
+        {/* Transparent, but a full 48x56 target — gloves, one hand, sunlight. */}
         <input
-          ref={nativeInputRef}
+          ref={dateInputRef}
           type="date"
           value={value || ''}
           onChange={(event) => commit(event.target.value)}
-          tabIndex={-1}
-          aria-hidden="true"
-          className="absolute left-0 top-0 h-px w-px overflow-hidden opacity-0"
+          onClick={openPicker}
+          aria-label={`Choose ${label.toLowerCase()} from calendar`}
+          className="peer absolute inset-y-0 right-0 w-12 opacity-0"
         />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-md text-ink-300 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent-bright"
+        >
+          <span className="material-symbols-outlined text-[20px]">calendar_month</span>
+        </span>
       </span>
       {invalid && (
         <span className="text-xs text-red-600">Enter a date like 9/10/2019 or Sep 10, 2019.</span>
