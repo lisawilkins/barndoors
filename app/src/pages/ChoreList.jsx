@@ -5,6 +5,7 @@ import ChoreListRead from '../components/ChoreListRead'
 import ChoreListEdit from '../components/ChoreListEdit'
 import ChoreListPrint from '../components/ChoreListPrint'
 import ConfirmDialog from '../components/ConfirmDialog'
+import PrintButton from '../components/PrintButton'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { fetchList, fetchListItems, saveListDetails, saveListItems } from '../lib/choreLists'
@@ -262,7 +263,7 @@ export default function ChoreList() {
   const displayTitle = title.trim() || 'Untitled list'
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className="flex min-h-screen flex-col bg-white print:block print:min-h-0">
       <div className="print:hidden">
         <TopNav backTo="/chores" backLabel="Chores" />
       </div>
@@ -298,7 +299,7 @@ export default function ChoreList() {
           onToast={handleToast}
         />
       ) : isPrint ? (
-        <main className="mx-auto flex w-full max-w-[800px] flex-col gap-3.5 p-4 print:max-w-none print:p-0">
+        <main className="mx-auto flex w-full max-w-[800px] flex-col gap-3.5 p-4 print:block print:max-w-none print:p-0">
           <div className="flex flex-wrap items-center justify-between gap-2.5 print:hidden">
             <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
               Print preview
@@ -311,13 +312,7 @@ export default function ChoreList() {
               >
                 Back
               </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="h-10 rounded-md bg-accent-bright px-4 text-[14.5px] font-semibold text-white active:opacity-90"
-              >
-                Print
-              </button>
+              <PrintButton className="h-10 rounded-md bg-accent-bright px-4 text-[14.5px] font-semibold text-white active:opacity-90" />
             </div>
           </div>
 

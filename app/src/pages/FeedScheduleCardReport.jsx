@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
+import PrintButton from '../components/PrintButton'
 import { supabase } from '../lib/supabaseClient'
 import { formatFeedAmount, orderFeedItems } from '../lib/feedFormat'
 
@@ -139,26 +140,22 @@ export default function FeedScheduleCardReport() {
   )
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas print:block print:min-h-0 print:bg-white">
       <div className="print:hidden">
         <TopNav backTo="/reports" backLabel="Reports" />
       </div>
 
-      <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
+      <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:block print:p-0 sm:px-6">
         <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
           <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
           <div className="flex w-full items-center justify-between">
             <Link to="/reports/feed-schedule" className="text-[14px] font-semibold text-accent-bright underline active:opacity-70">
               See Table View
             </Link>
-            <button
-              type="button"
-              onClick={() => window.print()}
+            <PrintButton
               disabled={loading || Boolean(error)}
               className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
-            >
-              Print
-            </button>
+            />
           </div>
         </div>
 
@@ -198,7 +195,7 @@ export default function FeedScheduleCardReport() {
         )}
 
         {!loading && !error && cards.length > 0 && (
-          <div className="feed-card-page hidden w-full flex-col bg-white print:flex">
+          <div className="feed-card-page hidden w-full bg-white print:block">
             <div className="flex items-baseline justify-between pb-2">
               <h2 className="text-xl font-bold text-gray-900">Feed schedule</h2>
               <span className="text-sm text-gray-500">{today}</span>

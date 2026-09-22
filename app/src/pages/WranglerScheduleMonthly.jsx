@@ -196,7 +196,7 @@ export function WranglerScheduleMonthlyPrint({
 
   return (
     <div
-      className="wrangler-schedule-print hidden w-full flex-col bg-white print:flex"
+      className="wrangler-schedule-print hidden w-full bg-white print:block"
       style={{ width: `${printableArea('landscape').width}px` }}
     >
       {printPages.map((weeks, pageIndex) => (

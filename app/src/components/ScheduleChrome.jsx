@@ -1,3 +1,4 @@
+import PrintButton from './PrintButton'
 import { monthLabel, weekRangeLabel } from '../lib/calendarSchedule'
 
 const viewLinkClass = 'text-[14px] font-semibold text-accent-bright underline active:opacity-70'
@@ -25,14 +26,7 @@ export function ScheduleViewHeader({ view, onSwitchToWeekly, onSwitchToMonthly, 
             See Monthly View
           </button>
         )}
-        <button
-          type="button"
-          onClick={() => window.print()}
-          disabled={printDisabled}
-          className={printLinkClass}
-        >
-          Print
-        </button>
+        <PrintButton disabled={printDisabled} className={printLinkClass} />
       </div>
     </div>
   )
