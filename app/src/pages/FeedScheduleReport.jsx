@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import LandscapeContent from '../components/LandscapeContent'
+import PrintButton from '../components/PrintButton'
 import { supabase } from '../lib/supabaseClient'
 import { formatFeedAmount, orderFeedItems } from '../lib/feedFormat'
 import { downloadCsv } from '../lib/csv'
@@ -136,12 +137,12 @@ export default function FeedScheduleReport() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas print:block print:min-h-0 print:bg-white">
       <div className="print:hidden">
         <TopNav backTo="/reports" backLabel="Reports" />
       </div>
 
-      <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:p-0 sm:px-6">
+      <main className="flex flex-1 flex-col items-center gap-4 px-4 py-6 print:block print:p-0 sm:px-6">
         <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
           <h1 className="font-display text-3xl font-light text-ink-900">Feed schedule</h1>
           <div className="flex w-full items-center justify-between">
@@ -156,14 +157,10 @@ export default function FeedScheduleReport() {
             >
               Download CSV
             </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
+            <PrintButton
               disabled={loading || Boolean(error)}
               className="text-[14px] font-semibold text-accent-bright underline active:opacity-70 disabled:opacity-50"
-            >
-              Print
-            </button>
+            />
           </div>
         </div>
 

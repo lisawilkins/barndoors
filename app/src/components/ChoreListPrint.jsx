@@ -27,17 +27,26 @@ export default function ChoreListPrint({
 
   return (
     <div className="chore-sheet bg-white" style={{ width: page.width, minHeight: page.height }}>
-      <div className="flex flex-col gap-4">
+      {/* Blocks with margins rather than a flex column with a gap: identical
+          spacing, but WebKit will only break a block across printed pages
+          (see lib/pageSetup.js), and a chore list running past one sheet is
+          the normal case. */}
+      <div>
         <div className="border-b-2 border-gray-900 pb-[9px]">
           <span className="text-[21px] font-bold tracking-tight">{title}</span>
         </div>
 
         {includeDescription && description?.trim() && (
-          <p className="m-0 text-[11.5px] leading-relaxed text-gray-700">{description}</p>
+          <p className="m-0 mt-4 text-[11.5px] leading-relaxed text-gray-700">{description}</p>
         )}
 
         <div
-          className="flex flex-col gap-[11px]"
+          // Portrait — the default, and the one that runs to several sheets —
+          // stacks the items as blocks so the page breaks can happen.
+          // Landscape keeps the flex column it has always had: `column-count`
+          // below has no effect on a flex container, and switching it to a
+          // block would silently turn that two-column layout on for everyone.
+          className={`mt-4 ${orientation === 'landscape' ? 'flex flex-col gap-[11px]' : '[&>*+*]:mt-[11px]'}`}
           // Landscape is nearly a third wider than it is tall, so a single
           // column leaves most of the sheet empty and makes the lines
           // uncomfortably long to follow. Two columns use the width and cut the

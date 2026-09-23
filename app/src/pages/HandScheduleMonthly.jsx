@@ -180,7 +180,7 @@ export function HandScheduleMonthlyPrint({
 
   return (
     <div
-      className="hand-schedule-print hidden w-full flex-col bg-white print:flex"
+      className="hand-schedule-print hidden w-full bg-white print:block"
       style={{ width: `${printableArea('landscape').width}px` }}
     >
       {printPages.map((weeks, pageIndex) => (

@@ -93,8 +93,13 @@ body {
     margin: 0.35in;
   }
 
+  /* #root belongs in here with html and body: on screen all three are
+     locked to the viewport height, and a root box still one page tall at
+     print time gives WebKit (every iPhone browser) an excuse to stop after
+     the first sheet. Multi-page printouts need the whole stack to grow. */
   html,
-  body {
+  body,
+  #root {
     height: auto;
   }
 

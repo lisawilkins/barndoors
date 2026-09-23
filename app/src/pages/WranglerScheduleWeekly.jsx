@@ -224,7 +224,7 @@ export function WranglerScheduleWeeklyPrint({
 
   return (
     <div
-      className="wrangler-schedule-print-week hidden flex-col bg-white print:flex"
+      className="wrangler-schedule-print-week hidden bg-white print:block"
       style={{ width: `${printableArea('portrait').width}px` }}
     >
       {weekDays

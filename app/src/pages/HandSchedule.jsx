@@ -313,12 +313,12 @@ export default function HandSchedule() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-surface-canvas print:bg-white">
+    <div className="flex min-h-screen flex-col bg-surface-canvas print:block print:min-h-0 print:bg-white">
       <div className="print:hidden">
         <TopNav backTo="/hands" backLabel="Hands" />
       </div>
 
-      <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 print:p-0 sm:px-6">
+      <main className="flex flex-1 flex-col items-center gap-3 px-4 py-6 print:block print:p-0 sm:px-6">
         <ScheduleViewHeader
           view={view}
           onSwitchToWeekly={switchToWeekly}

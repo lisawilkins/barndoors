@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
-import { TextField, TextAreaField, SelectField } from '../components/FormField'
+import { TextField, TextAreaField, SelectField, DateField } from '../components/FormField'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../lib/AuthContext'
 import { optimizeImageForUpload } from '../lib/optimizeImageForUpload'
@@ -1015,19 +1015,17 @@ export default function HerdForm() {
               />
             </div>
             <div className="flex gap-3">
-              <TextField
+              <DateField
                 label="Birth date"
-                type="date"
                 className="flex-1"
                 value={form.birth_date ?? ''}
-                onChange={(event) => update('birth_date', event.target.value)}
+                onChange={(value) => update('birth_date', value)}
               />
-              <TextField
+              <DateField
                 label="Acquired date"
-                type="date"
                 className="flex-1"
                 value={form.acquired_date ?? ''}
-                onChange={(event) => update('acquired_date', event.target.value)}
+                onChange={(value) => update('acquired_date', value)}
               />
             </div>
             <TextField

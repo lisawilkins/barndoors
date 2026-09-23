@@ -113,6 +113,8 @@ export function HandScheduleWeekly({
 // page and only overflows to a new one when it runs out of room — plain CSS
 // print pagination (`break-inside-avoid` per day) rather than a forced
 // per-day split. No add/delete icons, since those are screen-only controls.
+// The week itself is a block so those page breaks can happen — see the
+// pagination note in lib/pageSetup.js.
 export function HandScheduleWeeklyPrint({
   weekDays,
   weekStart,
@@ -162,7 +164,7 @@ export function HandScheduleWeeklyPrint({
 
   return (
     <div
-      className="hand-schedule-print-week hidden w-full flex-col bg-white print:flex"
+      className="hand-schedule-print-week hidden w-full bg-white print:block"
       style={{ width: `${printableArea('portrait').width}px` }}
     >
       <div className="pb-3">
