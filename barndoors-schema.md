@@ -192,9 +192,9 @@ Levels 1/2/3 are stored as `chore_items.depth` **0/1/2**. Items hang directly of
 |---|---|
 | id | |
 | name | "Summer", "Grooming" |
-| description | optional |
+| description | optional; line breaks typed in the editor are kept in the read view and printed sheet |
 | status | `active` \| `archived` — soft delete |
-| sort_order | tab order on the Chores screen |
+| sort_order | display order of lists on the Chores index; managers drag-and-drop to reorder (same pattern as `head.sort_order`) |
 | created_at / updated_at / updated_by | |
 
 ### `chore_items`

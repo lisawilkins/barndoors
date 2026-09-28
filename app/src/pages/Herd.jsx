@@ -311,7 +311,7 @@ export default function Herd() {
               to="/herd/new"
               className="flex h-11 items-center justify-center rounded-md bg-accent-bright px-4 text-[15px] font-semibold text-white active:opacity-90"
             >
-              Add animal
+              + Add
             </Link>
           )}
         </div>

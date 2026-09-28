@@ -312,13 +312,17 @@ List        title, description        "AM Chores" — one printable sheet
       SubSubItem  text only           "Fly mask on" — nesting stops here
 ```
 
-- `/chores` is an index of lists. `/chores/:listId` opens one and picks its own mode from
+- `/chores` is an index of lists. Managers get a **+ Add** button beside the heading (styled
+  like Herd's matching **+ Add** button) and can drag lists into order by a grip on each card, same sensors
+  as the Herd list; order persists to `chore_lists.sort_order`. `/chores/:listId` opens one and picks its own mode from
   the reader's role — managers get a read view with an **Edit** button, hands get the same
   view plus tick boxes.
 - **Editing is a live outline**, not a form: every row is already a text field. Return
   makes the next row, Tab/Shift-Tab nests and unnests, Backspace on an empty row deletes
   it and returns the cursor to the row above. No per-row controls appear until a row is
   focused. Changes save as you type via `save_chore_list_items`.
+- Line breaks typed into a description or note are kept (`whitespace-pre-line`) in both the
+  read view and the printed sheet — don't collapse them into one paragraph.
 - Reordering is drag-only, via `@dnd-kit` with the same `ScrollFriendlyTouchSensor` as the
   Herd list. Dragging a row carries its nested rows with it.
 - **The printed sheet is a separate layout**, not the web view with controls hidden: real
