@@ -37,7 +37,7 @@ export default function ChoreListPrint({
         </div>
 
         {includeDescription && description?.trim() && (
-          <p className="m-0 mt-4 text-[11.5px] leading-relaxed text-gray-700">{description}</p>
+          <p className="m-0 mt-4 whitespace-pre-line text-[11.5px] leading-relaxed text-gray-700">{description}</p>
         )}
 
         <div
@@ -59,10 +59,10 @@ export default function ChoreListPrint({
                 <div key={row.id} className="flex break-inside-avoid flex-col gap-[7px]">
                   <div className="flex items-baseline gap-2 border-b border-gray-300 pb-1">
                     <span className="text-sm font-bold">{numbers.get(row.id)}.</span>
-                    <span className="text-sm font-bold">{row.text}</span>
+                    <span className="whitespace-pre-line text-sm font-bold">{row.text}</span>
                   </div>
                   {row.note?.trim() && (
-                    <div className="pl-[22px] text-[11px] italic leading-relaxed text-gray-700">
+                    <div className="whitespace-pre-line pl-[22px] text-[11px] italic leading-relaxed text-gray-700">
                       NOTE: {row.note}
                     </div>
                   )}
@@ -78,9 +78,9 @@ export default function ChoreListPrint({
                     className="mt-0.5 block h-[11px] w-[11px] flex-shrink-0 border border-gray-500"
                   />
                   <div className="flex flex-col gap-[3px]">
-                    <span className="text-xs leading-snug">{row.text}</span>
+                    <span className="whitespace-pre-line text-xs leading-snug">{row.text}</span>
                     {row.note?.trim() && (
-                      <div className="text-[11px] italic leading-relaxed text-gray-700">
+                      <div className="whitespace-pre-line text-[11px] italic leading-relaxed text-gray-700">
                         NOTE: {row.note}
                       </div>
                     )}
@@ -100,7 +100,7 @@ export default function ChoreListPrint({
                 <span aria-hidden="true" className="flex-shrink-0">
                   –
                 </span>
-                <span>{row.text}</span>
+                <span className="whitespace-pre-line">{row.text}</span>
               </div>
             )
           })}

@@ -12,7 +12,7 @@ import { itemNumbers, visibleNodes } from '../lib/choreOutline'
 function Note({ text }) {
   if (!text?.trim()) return null
   return (
-    <span className="border-l-[3px] border-[#F0DDB0] pl-2.5 text-[14.5px] italic leading-relaxed text-gray-500">
+    <span className="whitespace-pre-line border-l-[3px] border-[#F0DDB0] pl-2.5 text-[14.5px] italic leading-relaxed text-gray-500">
       {text}
     </span>
   )
@@ -78,12 +78,12 @@ export default function ChoreListRead({ nodes, isWorker, checked, onToggleCheck 
 
             <div className="flex flex-1 flex-col gap-1.5">
               <span
-                className={
+                className={'whitespace-pre-line ' + (
                   node.depth === 1
                     ? 'text-[17.5px] font-bold leading-tight'
                     : node.depth === 2
                       ? `text-[15.5px] leading-snug ${done ? 'text-gray-400 line-through' : 'text-gray-800'}`
-                      : 'text-[14.5px] leading-snug text-gray-600'
+                      : 'text-[14.5px] leading-snug text-gray-600')
                 }
               >
                 {node.text}

@@ -388,7 +388,7 @@ export default function ChoreList() {
           </div>
 
           {description.trim() ? (
-            <p className="m-0 text-[15.5px] leading-relaxed text-gray-600">{description}</p>
+            <p className="m-0 whitespace-pre-line text-[15.5px] leading-relaxed text-gray-600">{description}</p>
           ) : (
             <p className="m-0 text-[15px] italic text-gray-400">No description</p>
           )}
