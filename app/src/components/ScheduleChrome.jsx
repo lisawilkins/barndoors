@@ -1,8 +1,11 @@
 import PrintButton from './PrintButton'
 import { monthLabel, weekRangeLabel } from '../lib/calendarSchedule'
 
-const viewLinkClass = 'text-[14px] font-semibold text-accent-bright underline active:opacity-70'
-const printLinkClass = `${viewLinkClass} disabled:opacity-50`
+const viewLinkClass =
+  'self-start text-[14px] font-semibold text-accent-bright underline underline-offset-2 active:opacity-70'
+// The same pink square as the calendar button on the Hands and Wranglers lists.
+const printButtonClass =
+  'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-accent-bright text-white active:opacity-90 disabled:opacity-50'
 const chevronClass =
   'flex h-10 w-10 items-center justify-center rounded-md border border-border-input bg-white text-ink-600 active:bg-surface-canvas'
 
@@ -13,21 +16,23 @@ const chevronClass =
 export function ScheduleViewHeader({ view, onSwitchToWeekly, onSwitchToMonthly, printDisabled }) {
   return (
     <div className="flex w-full max-w-[800px] flex-col gap-1 print:hidden">
-      <span className="font-display text-3xl font-light text-ink-900">
-        {view === 'monthly' ? 'Monthly View' : 'Weekly View'}
-      </span>
-      <div className="flex w-full items-center justify-between">
-        {view === 'monthly' ? (
-          <button type="button" onClick={onSwitchToWeekly} className={viewLinkClass}>
-            See Weekly View
-          </button>
-        ) : (
-          <button type="button" onClick={onSwitchToMonthly} className={viewLinkClass}>
-            See Monthly View
-          </button>
-        )}
-        <PrintButton disabled={printDisabled} className={printLinkClass} />
+      <div className="flex w-full items-start justify-between gap-3">
+        <h1 className="font-display text-3xl font-light text-ink-900">
+          {view === 'monthly' ? 'Monthly View' : 'Weekly View'}
+        </h1>
+        <PrintButton disabled={printDisabled} ariaLabel="Print" className={printButtonClass}>
+          <span className="material-symbols-outlined text-[24px]">print</span>
+        </PrintButton>
       </div>
+      {view === 'monthly' ? (
+        <button type="button" onClick={onSwitchToWeekly} className={viewLinkClass}>
+          See Weekly View
+        </button>
+      ) : (
+        <button type="button" onClick={onSwitchToMonthly} className={viewLinkClass}>
+          See Monthly View
+        </button>
+      )}
     </div>
   )
 }

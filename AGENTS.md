@@ -205,7 +205,7 @@ baked into it that should not be silently changed:
   over existing tables — fixed columns, no dynamic column selection in v1. (A chore list
   prints from the list itself, not from `/reports`; Hand and Wrangler schedules follow the
   same precedent — `/hands/schedule` and `/wranglers/schedule` each print directly from the
-  Monthly/Weekly view via a Print link, same letter-page sizing approach for both, no
+  Monthly/Weekly view via the pink printer-icon button beside the view title, same letter-page sizing approach for both, no
   separate `/reports` entry for either.) A `/reports`-listed hand-shift report (distinct
   from the in-schedule print) is still **planned, not built** — build it later as a
   filtered view over `hand_recurring_shifts` / `hand_shift_events` /

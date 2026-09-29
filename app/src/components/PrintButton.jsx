@@ -7,7 +7,7 @@ import { printPage } from '../lib/print'
 // what it adds is the tap handling in lib/print.js, and a line of help for
 // the phones that can't print at all (see `canPrint`), rather than a button
 // that appears to do nothing.
-export default function PrintButton({ className = '', disabled = false, children = 'Print' }) {
+export default function PrintButton({ className = '', disabled = false, children = 'Print', ariaLabel }) {
   const [unavailable, setUnavailable] = useState(false)
 
   return (
@@ -16,6 +16,7 @@ export default function PrintButton({ className = '', disabled = false, children
         type="button"
         onClick={() => setUnavailable(!printPage())}
         disabled={disabled}
+        aria-label={ariaLabel}
         className={className}
       >
         {children}
