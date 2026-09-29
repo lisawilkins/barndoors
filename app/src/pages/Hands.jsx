@@ -54,42 +54,29 @@ export default function Hands() {
       <TopNav />
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="font-display text-3xl font-light text-ink-900">Hands</h1>
-          <div className="flex gap-2">
-            {isManager && (
-              <Link
-                to="/hands/shift-types"
-                className="flex h-11 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
-              >
-                Shift types
-              </Link>
-            )}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="font-display text-3xl font-light text-ink-900">Hands</h1>
             <Link
               to="/hands/schedule"
-              className="flex h-11 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
+              aria-label="Schedule"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-accent-bright text-white active:opacity-90"
             >
-              Schedule
+              <span className="material-symbols-outlined text-[24px]">calendar_month</span>
             </Link>
           </div>
+          {isManager && (
+            <div className="flex items-center gap-3 text-[14px]">
+              <Link to="/hands/shift-types" className="py-2 font-semibold text-accent-bright underline underline-offset-2 active:opacity-70">
+                Shifts
+              </Link>
+              <span aria-hidden="true" className="text-ink-200">|</span>
+              <Link to="/hands/new" className="py-2 font-semibold text-accent-bright underline underline-offset-2 active:opacity-70">
+                +Add Hand
+              </Link>
+            </div>
+          )}
         </div>
-
-        {isManager && (
-          <div className="flex gap-3">
-            <Link
-              to="/hands/new"
-              className="flex h-12 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
-            >
-              Add hand
-            </Link>
-            <Link
-              to="/hands/new-manager"
-              className="flex h-12 flex-1 items-center justify-center rounded-md border border-border-input bg-white text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
-            >
-              Add manager/admin
-            </Link>
-          </div>
-        )}
 
         {(loading || authLoading) && <p className="text-[15px] text-ink-400">Loading…</p>}
         {error && <p className="text-[15px] text-red-600">{error}</p>}

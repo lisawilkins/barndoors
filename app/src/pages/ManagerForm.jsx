@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
+import AddPersonTabs from '../components/AddPersonTabs'
 import { TextField, SelectField } from '../components/FormField'
 import { supabase } from '../lib/supabaseClient'
 
@@ -54,7 +55,8 @@ export default function ManagerForm() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
-      <TopNav />
+      <TopNav backTo="/hands" backLabel="Hands" />
+      <AddPersonTabs active="/hands/new-manager" />
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <h1 className="text-3xl font-semibold text-gray-900">Add manager or admin</h1>

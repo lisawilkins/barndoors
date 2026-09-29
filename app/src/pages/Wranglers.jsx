@@ -68,34 +68,29 @@ export default function Wranglers() {
       <TopNav />
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="font-display text-3xl font-light text-ink-900">Wranglers</h1>
-          <div className="flex gap-2">
-            {isManager && (
-              <Link
-                to="/wranglers/time-slots"
-                className="flex h-11 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
-              >
-                Time slots
-              </Link>
-            )}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="font-display text-3xl font-light text-ink-900">Wranglers</h1>
             <Link
               to="/wranglers/schedule"
-              className="flex h-11 items-center justify-center rounded-md border border-border-input bg-white px-4 text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
+              aria-label="Schedule"
+              className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-accent-bright text-white active:opacity-90"
             >
-              Schedule
+              <span className="material-symbols-outlined text-[24px]">calendar_month</span>
             </Link>
           </div>
+          {isManager && (
+            <div className="flex items-center gap-3 text-[14px]">
+              <Link to="/wranglers/time-slots" className="py-2 font-semibold text-accent-bright underline underline-offset-2 active:opacity-70">
+                Time Slots
+              </Link>
+              <span aria-hidden="true" className="text-ink-200">|</span>
+              <Link to="/wranglers/new" className="py-2 font-semibold text-accent-bright underline underline-offset-2 active:opacity-70">
+                +Add Wrangler
+              </Link>
+            </div>
+          )}
         </div>
-
-        {isManager && (
-          <Link
-            to="/wranglers/new"
-            className="flex h-12 items-center justify-center rounded-md border border-border-input bg-white text-[15px] font-semibold text-ink-600 active:bg-surface-canvas"
-          >
-            Add wrangler
-          </Link>
-        )}
 
         {loading && <p className="text-[15px] text-ink-400">Loading…</p>}
         {error && <p className="text-[15px] text-red-600">{error}</p>}

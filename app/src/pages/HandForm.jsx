@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
+import AddPersonTabs from '../components/AddPersonTabs'
 import { TextField, SelectField, DateField } from '../components/FormField'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { useAuth } from '../lib/AuthContext'
@@ -435,11 +436,10 @@ export default function HandForm() {
   return (
     <div className="flex min-h-screen flex-col bg-surface-canvas">
       <TopNav backTo="/hands" backLabel="Hands" />
+      {!isEdit && <AddPersonTabs active="/hands/new" />}
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
-        <h1 className="font-display text-3xl font-light text-ink-900">
-          {isEdit ? 'Edit hand' : 'Add hand'}
-        </h1>
+        {isEdit && <h1 className="font-display text-3xl font-light text-ink-900">Edit hand</h1>}
 
         {isEdit && (
           <p className="text-[15px] text-ink-400">
