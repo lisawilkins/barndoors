@@ -371,9 +371,9 @@ export default function ChoreList() {
                 type="button"
                 onClick={() => setMode('print')}
                 aria-label="Print this list"
-                className="flex h-11 w-11 items-center justify-center rounded-md border border-border-input text-[17px] text-ink-600 active:bg-surface-canvas"
+                className="flex h-11 w-11 items-center justify-center rounded-md border border-border-input text-ink-600 active:bg-surface-canvas"
               >
-                ⎙
+                <span className="material-symbols-outlined text-[24px]">print</span>
               </button>
               {isManager && (
                 <button

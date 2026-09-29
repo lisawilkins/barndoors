@@ -156,11 +156,11 @@ export default function HandShiftTypes() {
 
       <main className="mx-auto flex w-full max-w-[800px] flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         <div className="flex items-center justify-between">
-          <h1 className="font-display text-3xl font-light text-ink-900">Shift types</h1>
+          <h1 className="font-display text-3xl font-light text-ink-900">Shifts</h1>
           <button
             type="button"
             onClick={openAddModal}
-            aria-label="Add a shift type"
+            aria-label="Add a shift"
             className="material-symbols-outlined text-[24px] text-ink-600 active:text-accent-bright"
           >
             add
@@ -178,7 +178,7 @@ export default function HandShiftTypes() {
                 <div key={day.value} className="flex flex-col gap-2 rounded-md border border-border-card bg-white p-3.5">
                   <span className="text-[15px] font-bold text-ink-900">{day.label}</span>
 
-                  {dayTypes.length === 0 && <p className="text-sm text-ink-300">No shift types yet.</p>}
+                  {dayTypes.length === 0 && <p className="text-sm text-ink-300">No shifts yet.</p>}
 
                   {dayTypes.length > 0 && (
                     <ul className="flex flex-col">
@@ -219,7 +219,7 @@ export default function HandShiftTypes() {
             onClick={(event) => event.stopPropagation()}
             className="flex w-full max-w-sm flex-col gap-3 rounded-md bg-white p-5 shadow-card"
           >
-            <h2 className="font-display text-xl font-semibold text-ink-900">Add a shift type</h2>
+            <h2 className="font-display text-xl font-semibold text-ink-900">Add a shift</h2>
 
             <form onSubmit={handleAddType} className="flex flex-col gap-3">
               <SelectField
@@ -279,7 +279,7 @@ export default function HandShiftTypes() {
             className="flex w-full max-w-sm flex-col gap-3 rounded-md bg-white p-5 shadow-card"
           >
             <h2 className="font-display text-xl font-semibold text-ink-900">
-              Edit {WEEKDAYS.find((day) => day.value === editingType.day_of_week)?.label} shift type
+              Edit {WEEKDAYS.find((day) => day.value === editingType.day_of_week)?.label} shift
             </h2>
 
             <TextField label="Name" value={editNameDraft} onChange={(event) => setEditNameDraft(event.target.value)} />
