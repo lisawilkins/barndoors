@@ -345,6 +345,11 @@ Every authenticated screen shares the same top-level layout:
   `/chores`, `/wranglers`, and `/reports`. This is the primary entry point to major app
   areas; the Hand shift calendar (`/hands/schedule`) isn't on home yet — reachable via a
   link on the Hands list page instead.
+- **Hands and Wranglers list headers:** the schedule is the most-used feature, so it's the
+  pink calendar-icon button beside the heading (visible to everyone). Manager-only text links
+  sit under the heading — Wranglers: **Time Slots | +Add Wrangler**; Hands: **Shifts |
+  +Add Hand**. Adding a manager/admin isn't a separate button: `/hands/new` and
+  `/hands/new-manager` share an **Add Hand / Add Manager** tab bar (`AddPersonTabs`).
 - **Source layout:** pages in `app/src/pages/`, shared UI in `app/src/components/`, helpers
   in `app/src/lib/`.
 
