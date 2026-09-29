@@ -566,7 +566,7 @@ export default function HandForm() {
                         onChange={(event) => updateShiftRow(row.key, 'shift_type_id', event.target.value)}
                       >
                         <option value="" disabled>
-                          {dayTypes.length === 0 ? 'No shift types for this day' : 'Select…'}
+                          {dayTypes.length === 0 ? 'No shifts for this day' : 'Select…'}
                         </option>
                         {dayTypes.map((type) => (
                           <option key={type.id} value={type.id}>
@@ -615,7 +615,7 @@ export default function HandForm() {
 
               {shiftTypes.every((type) => !type.active) && (
                 <p className="text-sm text-ink-300">
-                  No shift types configured yet.{' '}
+                  No shifts set up yet.{' '}
                   <Link to="/hands/shift-types" className="underline">
                     Add some
                   </Link>{' '}

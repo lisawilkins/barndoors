@@ -244,7 +244,8 @@ baked into it that should not be silently changed:
   can simply also be a working staff member the way a hand is, while a manager can't. **Shift
   types are day-specific**
   (`hand_shift_types.day_of_week` — "Sun AM" and "Mon AM" are different rows), managed on
-  their own page (`/hands/shift-types`), not inline on a hand's profile. A default set of
+  their own page (`/hands/shift-types`, titled **Shifts** in the UI — code and database still
+  say "shift types"), not inline on a hand's profile. A default set of
   14 rows (AM and PM × every day of the week) ships as data in the same migration that
   creates the table (`supabase db push` doesn't run `seed.sql` — that file only loads on a
   local `db reset` — so any default rows a production deploy needs have to be plain
