@@ -50,13 +50,19 @@ export function useCalendarView(loading, { expandAllByDefault = false } = {}) {
   }
 
   function switchToMonthly() {
-    // weekStart is always a Sunday, which can land in the previous month from
-    // most of the days actually on screen (e.g. tapping Sep 1 sets weekStart
-    // to Aug 30) — anchor on the week's Wednesday instead so this lands on
-    // whichever month owns most of the visible week, not just its first day.
-    const monthAnchor = addDays(weekStart, 3)
-    setYear(monthAnchor.getFullYear())
-    setMonth(monthAnchor.getMonth())
+    // year/month still hold the month the reader left Monthly from. If the
+    // visible week still touches it (e.g. October → Weekly lands on Sep 27 –
+    // Oct 3 → back), return there rather than jumping to the other month.
+    const touchesPreviousMonth = weekDays.some((day) => day.getFullYear() === year && day.getMonth() === month)
+    if (!touchesPreviousMonth) {
+      // Paged away to a different week: weekStart is always a Sunday, which
+      // can land in the previous month from most of the days actually on
+      // screen — anchor on the week's Wednesday instead so this lands on
+      // whichever month owns most of the visible week.
+      const monthAnchor = addDays(weekStart, 3)
+      setYear(monthAnchor.getFullYear())
+      setMonth(monthAnchor.getMonth())
+    }
     setView('monthly')
     window.scrollTo({ top: 0 })
   }
