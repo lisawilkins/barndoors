@@ -4,13 +4,19 @@ import { addDays, isoDate, startOfWeek } from './calendarSchedule'
 // Shared month/week navigation for the Wrangler and Hand schedule screens.
 // Chrome only — each page still owns what a day means (horses vs vacations,
 // Ride/Work vs titled one-offs) and keeps its own route and product.
-export function useCalendarView(loading) {
+//
+// `expandAllByDefault`: every Weekly day starts open (including after paging
+// to another week) and the reader collapses the ones they don't need —
+// tracked as a set of collapsed days instead of expanded ones. Off by
+// default, where days start closed and only a tapped Monthly day opens.
+export function useCalendarView(loading, { expandAllByDefault = false } = {}) {
   const today = useMemo(() => new Date(), [])
   const [view, setView] = useState('monthly') // 'monthly' | 'weekly'
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today))
   const [expandedDays, setExpandedDays] = useState(() => new Set())
+  const [collapsedDays, setCollapsedDays] = useState(() => new Set())
   const [scrollToIso, setScrollToIso] = useState(null)
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
@@ -38,18 +44,25 @@ export function useCalendarView(loading) {
     const base = today.getFullYear() === year && today.getMonth() === month ? today : new Date(year, month, 1)
     setWeekStart(startOfWeek(base))
     setExpandedDays(new Set())
+    setCollapsedDays(new Set())
     setView('weekly')
     window.scrollTo({ top: 0 })
   }
 
   function switchToMonthly() {
-    // weekStart is always a Sunday, which can land in the previous month from
-    // most of the days actually on screen (e.g. tapping Sep 1 sets weekStart
-    // to Aug 30) — anchor on the week's Wednesday instead so this lands on
-    // whichever month owns most of the visible week, not just its first day.
-    const monthAnchor = addDays(weekStart, 3)
-    setYear(monthAnchor.getFullYear())
-    setMonth(monthAnchor.getMonth())
+    // year/month still hold the month the reader left Monthly from. If the
+    // visible week still touches it (e.g. October → Weekly lands on Sep 27 –
+    // Oct 3 → back), return there rather than jumping to the other month.
+    const touchesPreviousMonth = weekDays.some((day) => day.getFullYear() === year && day.getMonth() === month)
+    if (!touchesPreviousMonth) {
+      // Paged away to a different week: weekStart is always a Sunday, which
+      // can land in the previous month from most of the days actually on
+      // screen — anchor on the week's Wednesday instead so this lands on
+      // whichever month owns most of the visible week.
+      const monthAnchor = addDays(weekStart, 3)
+      setYear(monthAnchor.getFullYear())
+      setMonth(monthAnchor.getMonth())
+    }
     setView('monthly')
     window.scrollTo({ top: 0 })
   }
@@ -58,6 +71,7 @@ export function useCalendarView(loading) {
     const iso = isoDate(date)
     setWeekStart(startOfWeek(date))
     setExpandedDays(new Set([iso]))
+    setCollapsedDays(new Set())
     setScrollToIso(iso)
     setView('weekly')
   }
@@ -74,13 +88,22 @@ export function useCalendarView(loading) {
   }, [view, loading, scrollToIso])
 
   function toggleDayExpanded(iso) {
-    setExpandedDays((current) => {
+    const setter = expandAllByDefault ? setCollapsedDays : setExpandedDays
+    setter((current) => {
       const next = new Set(current)
       if (next.has(iso)) next.delete(iso)
       else next.add(iso)
       return next
     })
   }
+
+  const visibleExpandedDays = useMemo(
+    () =>
+      expandAllByDefault
+        ? new Set(weekDays.map(isoDate).filter((iso) => !collapsedDays.has(iso)))
+        : expandedDays,
+    [expandAllByDefault, weekDays, collapsedDays, expandedDays],
+  )
 
   return {
     today,
@@ -89,7 +112,7 @@ export function useCalendarView(loading) {
     month,
     weekStart,
     weekDays,
-    expandedDays,
+    expandedDays: visibleExpandedDays,
     changeMonth,
     changeWeek,
     switchToWeekly,

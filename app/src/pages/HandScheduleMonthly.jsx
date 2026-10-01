@@ -2,13 +2,16 @@ import { useMemo } from 'react'
 import MonthCalendar from '../components/MonthCalendar'
 import LandscapeContent from '../components/LandscapeContent'
 import { printableArea } from '../lib/pageSetup'
-import { isoDate, monthLabel, monthGridWeeks, CALENDAR_WEEKDAY_LABELS, buildPrintLines } from '../lib/calendarSchedule'
+import { isoDate, monthLabel, monthGridWeeks, CALENDAR_WEEKDAY_LABELS } from '../lib/calendarSchedule'
 import {
   effectiveShiftsForDate,
   groupEffectiveShifts,
   isOnVacation,
   groupHeaderLabel,
+  eventLabel,
+  eventBgClass,
   shiftRowKey,
+  OPEN_SHIFT_LABEL,
 } from '../lib/handSchedule'
 
 // Monthly print paginates a fixed number of week-rows per physical page so
@@ -50,6 +53,29 @@ export function HandScheduleMonthly({
   onDayClick,
   onAddClick,
 }) {
+  function renderChip(shift, date, bgClass) {
+    if (shift.openShift) {
+      return (
+        <div key={shiftRowKey(shift)} className={`rounded-sm px-1 py-0.5 text-2xs font-bold text-chip-fg ${bgClass}`}>
+          <span className="truncate">{OPEN_SHIFT_LABEL}</span>
+        </div>
+      )
+    }
+    const hand = handsById[shift.profile_id]
+    const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
+    return (
+      <div
+        key={shiftRowKey(shift)}
+        className={`flex items-center gap-1 rounded-sm px-1 py-0.5 text-2xs text-chip-fg ${bgClass} ${
+          onVacation ? 'opacity-50' : ''
+        }`}
+      >
+        <span className="truncate">{hand?.name ?? 'Unknown'}</span>
+        {onVacation && <span className="flex-shrink-0">🌴</span>}
+      </div>
+    )
+  }
+
   function renderDay(date, inMonth) {
     const iso = isoDate(date)
     const shifts = effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById)
@@ -89,27 +115,18 @@ export function HandScheduleMonthly({
         <div className="flex flex-col gap-1.5">
           {groups.map((group) => (
             <div key={group.key} className="flex flex-col gap-0.5">
-              <div className="flex items-baseline justify-between gap-1 px-0.5">
-                <span className="truncate text-2xs font-bold text-ink-600">{groupHeaderLabel(group, shiftTypesById)}</span>
-                {group.source === 'oneoff' && group.event_time && (
-                  <span className="flex-shrink-0 text-2xs font-semibold text-ink-400">{group.event_time}</span>
-                )}
-              </div>
-              {group.items.map((shift) => {
-                const hand = handsById[shift.profile_id]
-                const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
-                return (
-                  <div
-                    key={shiftRowKey(shift)}
-                    className={`flex items-center gap-1 rounded-sm bg-chip-bg px-1 py-0.5 text-2xs text-chip-fg ${
-                      onVacation ? 'opacity-50' : ''
-                    }`}
-                  >
-                    <span className="truncate">{hand?.name ?? 'Unknown'}</span>
-                    {onVacation && <span className="flex-shrink-0">🌴</span>}
-                  </div>
-                )
-              })}
+              {group.kind === 'shift' && (
+                <span className="truncate px-0.5 text-2xs font-bold text-ink-600">{groupHeaderLabel(group, shiftTypesById)}</span>
+              )}
+              {group.kind === 'shift' && group.items.map((shift) => renderChip(shift, date, 'bg-chip-bg'))}
+              {group.events.map((block) => (
+                <div key={block.eventId} className="flex flex-col gap-0.5">
+                  {eventLabel(block.event) && (
+                    <span className="truncate px-0.5 text-2xs font-bold text-ink-600">{eventLabel(block.event)}</span>
+                  )}
+                  {block.items.map((shift) => renderChip(shift, date, eventBgClass(block.event)))}
+                </div>
+              ))}
             </div>
           ))}
         </div>
@@ -148,32 +165,44 @@ export function HandScheduleMonthlyPrint({
   function renderPrintDay(date, inMonth) {
     const shifts = effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById)
     const groups = groupEffectiveShifts(shifts, shiftTypesById)
-    const { lines } = buildPrintLines(groups, Infinity)
+
+    function renderPrintName(shift) {
+      if (shift.openShift) {
+        return (
+          <span key={shiftRowKey(shift)} className="truncate font-bold text-gray-900">
+            {OPEN_SHIFT_LABEL}
+          </span>
+        )
+      }
+      const hand = handsById[shift.profile_id]
+      const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
+      return (
+        <span key={shiftRowKey(shift)} className="truncate text-gray-800">
+          {hand?.name ?? 'Unknown'}
+          {onVacation ? ' 🌴' : ''}
+        </span>
+      )
+    }
 
     return (
       <div className="flex h-full flex-col gap-px overflow-hidden px-1 py-0.5" style={{ opacity: inMonth ? 1 : 0.35 }}>
         <span className="font-bold text-gray-900">{date.getDate()}</span>
-        {lines.map((line) => {
-          if (line.type === 'header') {
-            return (
-              <div key={`header-${line.group.key}`} className="flex items-baseline justify-between gap-1">
-                <span className="truncate font-bold text-gray-900">{groupHeaderLabel(line.group, shiftTypesById)}</span>
-                {line.group.source === 'oneoff' && line.group.event_time && (
-                  <span className="flex-shrink-0 font-bold text-gray-600">{line.group.event_time}</span>
+        {groups.map((group) => (
+          <div key={group.key} className="flex flex-col gap-px">
+            {group.kind === 'shift' && (
+              <span className="truncate font-bold text-gray-900">{groupHeaderLabel(group, shiftTypesById)}</span>
+            )}
+            {group.kind === 'shift' && group.items.map(renderPrintName)}
+            {group.events.map((block) => (
+              <div key={block.eventId} className="flex flex-col gap-px">
+                {eventLabel(block.event) && (
+                  <span className="truncate font-bold italic text-gray-900">{eventLabel(block.event)}</span>
                 )}
+                {block.items.map(renderPrintName)}
               </div>
-            )
-          }
-          const shift = line.item
-          const hand = handsById[shift.profile_id]
-          const onVacation = isOnVacation(shift.profile_id, date, vacationsByProfileId)
-          return (
-            <span key={shiftRowKey(shift)} className="truncate text-gray-800">
-              {hand?.name ?? 'Unknown'}
-              {onVacation ? ' 🌴' : ''}
-            </span>
-          )
-        })}
+            ))}
+          </div>
+        ))}
       </div>
     )
   }

@@ -27,6 +27,8 @@
   /* Chip */
   --color-chip-bg: #f3e6da;
   --color-chip-fg: #4f0750;
+  --color-oneoff-bg: #eeeeff;
+  --color-open-shift-bg: #f2cfcf;
 
   /* Placeholder imagery tones */
   --color-placeholder-tan-1: #cdbba4;

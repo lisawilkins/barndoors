@@ -4,7 +4,7 @@ import ConfirmDialog from '../components/ConfirmDialog'
 import { ScheduleViewHeader, SchedulePeriodNav } from '../components/ScheduleChrome'
 import { HandScheduleMonthly, HandScheduleMonthlyPrint } from './HandScheduleMonthly'
 import { HandScheduleWeekly, HandScheduleWeeklyPrint } from './HandScheduleWeekly'
-import HandScheduleAddForm from './HandScheduleAddForm'
+import HandScheduleEventForm from './HandScheduleEventForm'
 import { useAuth } from '../lib/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import { usePageOrientation } from '../lib/pageSetup'
@@ -29,7 +29,7 @@ export default function HandSchedule() {
     switchToMonthly,
     goToWeekFor,
     toggleDayExpanded,
-  } = useCalendarView(loading)
+  } = useCalendarView(loading, { expandAllByDefault: true })
 
   const [hands, setHands] = useState([])
   const [shiftTypes, setShiftTypes] = useState([])
@@ -41,7 +41,8 @@ export default function HandSchedule() {
   const [error, setError] = useState('')
   const [reloadToken, setReloadToken] = useState(0)
 
-  const [addDate, setAddDate] = useState(null)
+  // { date, event } while the add/edit form is open — event is null when adding.
+  const [eventFormState, setEventFormState] = useState(null)
   const [savingEvent, setSavingEvent] = useState(false)
   const [eventError, setEventError] = useState('')
 
@@ -111,16 +112,15 @@ export default function HandSchedule() {
         // Not filtered to active — an archived type must still resolve
         // correctly for any existing recurring shift that references it
         // (archiving retires it from new picks, it doesn't erase history).
-        // This page never offers a shift-type picker, so there's no
-        // active-only requirement to preserve here.
-        supabase.from('hand_shift_types').select('id, name, day_of_week, sort_order').order('sort_order'),
+        // The one-off form filters to active types itself.
+        supabase.from('hand_shift_types').select('id, name, day_of_week, sort_order, active').order('sort_order'),
         supabase
           .from('hand_recurring_shifts')
           .select('id, profile_id, shift_type_id, biweekly, biweekly_start_date'),
         supabase.from('hand_recurring_shift_skips').select('id, recurring_shift_id, date'),
         supabase
           .from('hand_shift_events')
-          .select('id, title, event_date, event_time, notes, hand_shift_event_members(profile_id)')
+          .select('id, title, event_date, start_time, shift_type_id, needs_help, notes, hand_shift_event_members(profile_id)')
           .gte('event_date', startIso)
           .lte('event_date', endIso),
         supabase.from('hand_vacations').select('id, profile_id, start_date, end_date'),
@@ -173,62 +173,59 @@ export default function HandSchedule() {
   }
 
   function openAddForm(date) {
-    setAddDate(date)
+    setEventFormState({ date, event: null })
     setEventError('')
   }
 
-  function closeAddForm() {
-    setAddDate(null)
+  function openEditForm(event) {
+    setEventFormState({ date: null, event })
+    setEventError('')
+  }
+
+  function closeEventForm() {
+    setEventFormState(null)
     setEventError('')
   }
 
   async function handleSaveEvent(eventForm) {
-    if (!eventForm.title.trim() || !eventForm.event_time.trim()) {
-      setEventError('Enter a title and time.')
+    if (!eventForm.event_date) {
+      setEventError('Enter a date.')
       return
     }
-    if (eventForm.member_ids.length === 0) {
-      setEventError('Select at least one hand.')
+    if (!eventForm.start_time && !eventForm.shift_type_id) {
+      setEventError('Pick a time or a shift.')
+      return
+    }
+    if (!eventForm.needs_help && eventForm.member_ids.length === 0) {
+      setEventError('Select at least one hand, or check Needs Help.')
       return
     }
 
     setSavingEvent(true)
     setEventError('')
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('hand_shift_events')
-      .insert({
-        title: eventForm.title.trim(),
-        event_date: isoDate(addDate),
-        event_time: eventForm.event_time.trim(),
-        notes: eventForm.notes.trim() || null,
-        updated_by: profile?.id ?? null,
-      })
-      .select('id')
-      .single()
-
-    if (insertError) {
-      setEventError(insertError.message)
-      setSavingEvent(false)
-      return
-    }
-
-    const { error: membersError } = await supabase
-      .from('hand_shift_event_members')
-      .insert(eventForm.member_ids.map((profileId) => ({ event_id: inserted.id, profile_id: profileId })))
+    // One transaction for the event and its hands — see save_hand_shift_event
+    // in the migrations. A failed save leaves the one-off exactly as it was.
+    const { error: saveError } = await supabase.rpc('save_hand_shift_event', {
+      p_event_id: eventFormState?.event?.id ?? null,
+      p_title: eventForm.title.trim() || null,
+      p_event_date: eventForm.event_date,
+      p_start_time: eventForm.start_time || null,
+      p_shift_type_id: eventForm.shift_type_id || null,
+      p_needs_help: eventForm.needs_help,
+      p_notes: eventForm.notes.trim() || null,
+      p_member_ids: eventForm.needs_help ? [] : eventForm.member_ids,
+      p_updated_by: profile?.id ?? null,
+    })
 
     setSavingEvent(false)
 
-    if (membersError) {
-      // Don't leave a member-less event behind — it would render nowhere
-      // (effectiveShiftsForDate expands events by member) and have no UI
-      // path to find or delete it.
-      await supabase.from('hand_shift_events').delete().eq('id', inserted.id)
-      setEventError(membersError.message)
+    if (saveError) {
+      setEventError(saveError.message)
       return
     }
 
-    closeAddForm()
+    closeEventForm()
     reload()
   }
 
@@ -238,7 +235,10 @@ export default function HandSchedule() {
 
     let opError = null
 
-    if (shift.source === 'recurring') {
+    if (shift.openShift) {
+      const { error: eventDeleteError } = await supabase.from('hand_shift_events').delete().eq('id', shift.eventId)
+      opError = eventDeleteError
+    } else if (shift.source === 'recurring') {
       const { error: skipError } = await supabase
         .from('hand_recurring_shift_skips')
         .insert({ recurring_shift_id: shift.recurringShiftId, date: isoDate(date) })
@@ -274,15 +274,17 @@ export default function HandSchedule() {
   function deleteDialogMessage() {
     if (!deletingShift) return ''
     const { shift, date } = deletingShift
+    const dateText = date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
+    if (shift.openShift) return `Delete the open shift${shift.event.title ? ` "${shift.event.title}"` : ''} on ${dateText}?`
     const hand = handsById[shift.profile_id]
     const name = hand?.name ?? 'Unknown'
-    const dateText = date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
 
     if (shift.source === 'recurring') {
       const type = shiftTypesById[shift.shift_type_id]
       return `${name}'s ${type?.name ?? 'shift'} on ${dateText}. This only removes this one date — to remove the standing shift entirely, edit it from ${name}'s profile.`
     }
-    return `Remove ${name} from "${shift.title}" on ${dateText}? Other assigned hands are unaffected.`
+    const eventName = shift.event.title ? `"${shift.event.title}"` : 'this one-off'
+    return `Remove ${name} from ${eventName} on ${dateText}? Other assigned hands are unaffected.`
   }
 
   const monthlyProps = {
@@ -352,6 +354,7 @@ export default function HandSchedule() {
             {...weeklyProps}
             onToggleDay={toggleDayExpanded}
             onOpenAdd={openAddForm}
+            onEditEvent={openEditForm}
             onDeleteShift={setDeletingShift}
           />
         )}
@@ -361,15 +364,17 @@ export default function HandSchedule() {
         {!loading && !error && view === 'weekly' && <HandScheduleWeeklyPrint {...weeklyProps} />}
       </main>
 
-      {addDate && (
-        <HandScheduleAddForm
-          date={addDate}
+      {eventFormState && (
+        <HandScheduleEventForm
+          date={eventFormState.date}
+          event={eventFormState.event}
           hands={hands}
           handsById={handsById}
+          shiftTypes={shiftTypes}
           saving={savingEvent}
           error={eventError}
           onSubmit={handleSaveEvent}
-          onClose={closeAddForm}
+          onClose={closeEventForm}
         />
       )}
 

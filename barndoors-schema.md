@@ -417,16 +417,36 @@ touching the standing pattern — not a vacation.
 One-off, non-recurring shifts, added from the calendar (`HandSchedule.jsx`), not the
 profile. Unlike a Wrangler one-off (`wrangler_assignments`, which still picks an existing
 day-scoped time slot), a Hand one-off is a **freestanding event** — its own title, date,
-free-text time, and notes — with **more than one hand** assignable to the same event (e.g.
-"Gymkhana · Sept 29 · 8am · Groom for event. Meet at SA or event venue · Anne, Lisa,
+time, and notes — with **more than one hand** assignable to the same event (e.g.
+"Gymkhana · Sept 29 · 8 AM · Groom for event. Meet at SA or event venue · Anne, Lisa,
 Sharon"). `hand_shift_event_members` is a plain join table, no independent identity of its
-own.
+own. Managers tap a one-off in the Weekly view to edit it (every field is editable).
+
+**When:** either a `start_time` (time picker) **or** one of that weekday's existing shifts
+(`shift_type_id`, e.g. "AM") — never both (check constraint), and the form requires one. A
+shift-based one-off renders *inside* that shift's group on the calendar; a timed one-off is
+its own entry, labeled time first ("8 AM · Gymkhana"). Legacy one-offs (before 2026-10-01) had a free-text `event_time`; the
+migration moved that text into the title (e.g. "Gymkhana · 8am") and they have neither
+until next edited.
+
+**Who:** either assigned hands **or** `needs_help = true` — never both (the app clears
+members when saving Needs Help). A Needs Help one-off shows "OPEN SHIFT" instead of names.
+Colors: Needs Help one-offs are `#f2cfcf`, all other one-offs `#eeeeff`; recurring shifts
+keep their existing styling.
+
+**Saving:** adds and edits both go through `save_hand_shift_event(...)` (security invoker
+RPC, managers-only RLS is the authorization), which writes the event and replaces its members
+in one transaction, so a failed save can never leave a member-less, non-Needs-Help one-off
+that renders nowhere.
 | Field (`hand_shift_events`) | Notes |
 |---|---|
 | id | |
-| title | e.g. "Gymkhana" |
+| title | e.g. "Gymkhana" — optional (nullable) |
 | event_date | |
-| event_time | free text, e.g. "8am" |
+| start_time | `time`, nullable — set when the one-off uses a picked time |
+| shift_type_id | FK → hand_shift_types (on delete restrict), nullable — set when the one-off uses an existing shift; check: not both with `start_time` |
+| needs_help | boolean, default false — shows as OPEN SHIFT, no members |
+| event_time | **deprecated** — legacy free text, now always null (moved into `title`); kept so an old frontend build doesn't break mid-deploy. Same precedent as `head.tag_id` |
 | notes | e.g. "Groom for event. Meet at SA or event venue." |
 | updated_at / updated_by | |
 
@@ -458,7 +478,8 @@ effect of a vacation range.
 `WranglerSchedule.jsx`): for a given date, take every `hand_recurring_shifts` row whose
 shift type's `day_of_week` matches that weekday, minus any with a matching
 `hand_recurring_shift_skips` row for that date, union every `hand_shift_event_members` row
-(expanded from `hand_shift_events`) for that exact date — then, independently, overlay
+(expanded from `hand_shift_events`; a Needs Help event expands to one OPEN SHIFT entry
+instead) for that exact date — then, independently, overlay
 vacation dimming per hand per day from `hand_vacations`, regardless of which of the two
 sources a given entry came from.
 
