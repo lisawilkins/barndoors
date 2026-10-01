@@ -433,6 +433,11 @@ until next edited.
 members when saving Needs Help). A Needs Help one-off shows "OPEN SHIFT" instead of names.
 Colors: Needs Help one-offs are `#f2cfcf`, all other one-offs `#eeeeff`; recurring shifts
 keep their existing styling.
+
+**Saving:** adds and edits both go through `save_hand_shift_event(...)` (security invoker
+RPC, managers-only RLS is the authorization), which writes the event and replaces its members
+in one transaction, so a failed save can never leave a member-less, non-Needs-Help one-off
+that renders nowhere.
 | Field (`hand_shift_events`) | Notes |
 |---|---|
 | id | |

@@ -204,75 +204,24 @@ export default function HandSchedule() {
     setSavingEvent(true)
     setEventError('')
 
-    const existing = eventFormState?.event
-    const fields = {
-      title: eventForm.title.trim() || null,
-      event_date: eventForm.event_date,
-      start_time: eventForm.start_time || null,
-      shift_type_id: eventForm.shift_type_id || null,
-      needs_help: eventForm.needs_help,
-      notes: eventForm.notes.trim() || null,
-      updated_by: profile?.id ?? null,
-    }
-    const memberIds = eventForm.needs_help ? [] : eventForm.member_ids
-
-    if (existing) {
-      const { error: updateError } = await supabase.from('hand_shift_events').update(fields).eq('id', existing.id)
-      if (updateError) {
-        setEventError(updateError.message)
-        setSavingEvent(false)
-        return
-      }
-
-      // Replace the member list outright — simpler than diffing, and the
-      // join table has no data of its own to preserve.
-      const { error: clearError } = await supabase.from('hand_shift_event_members').delete().eq('event_id', existing.id)
-      const { error: membersError } =
-        clearError || memberIds.length === 0
-          ? { error: null }
-          : await supabase
-              .from('hand_shift_event_members')
-              .insert(memberIds.map((profileId) => ({ event_id: existing.id, profile_id: profileId })))
-
-      setSavingEvent(false)
-      if (clearError || membersError) {
-        setEventError((clearError ?? membersError).message)
-        reload()
-        return
-      }
-
-      closeEventForm()
-      reload()
-      return
-    }
-
-    const { data: inserted, error: insertError } = await supabase
-      .from('hand_shift_events')
-      .insert(fields)
-      .select('id')
-      .single()
-
-    if (insertError) {
-      setEventError(insertError.message)
-      setSavingEvent(false)
-      return
-    }
-
-    const { error: membersError } =
-      memberIds.length === 0
-        ? { error: null }
-        : await supabase
-            .from('hand_shift_event_members')
-            .insert(memberIds.map((profileId) => ({ event_id: inserted.id, profile_id: profileId })))
+    // One transaction for the event and its hands — see save_hand_shift_event
+    // in the migrations. A failed save leaves the one-off exactly as it was.
+    const { error: saveError } = await supabase.rpc('save_hand_shift_event', {
+      p_event_id: eventFormState?.event?.id ?? null,
+      p_title: eventForm.title.trim() || null,
+      p_event_date: eventForm.event_date,
+      p_start_time: eventForm.start_time || null,
+      p_shift_type_id: eventForm.shift_type_id || null,
+      p_needs_help: eventForm.needs_help,
+      p_notes: eventForm.notes.trim() || null,
+      p_member_ids: eventForm.needs_help ? [] : eventForm.member_ids,
+      p_updated_by: profile?.id ?? null,
+    })
 
     setSavingEvent(false)
 
-    if (membersError) {
-      // Don't leave a member-less event behind — unless it Needs Help it
-      // would render nowhere (effectiveShiftsForDate expands events by
-      // member) and have no UI path to find or delete it.
-      await supabase.from('hand_shift_events').delete().eq('id', inserted.id)
-      setEventError(membersError.message)
+    if (saveError) {
+      setEventError(saveError.message)
       return
     }
 
