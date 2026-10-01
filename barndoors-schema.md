@@ -425,7 +425,7 @@ own. Managers tap a one-off in the Weekly view to edit it (every field is editab
 **When:** either a `start_time` (time picker) **or** one of that weekday's existing shifts
 (`shift_type_id`, e.g. "AM") — never both (check constraint), and the form requires one. A
 shift-based one-off renders *inside* that shift's group on the calendar; a timed one-off is
-its own entry. Legacy one-offs (before 2026-10-01) had a free-text `event_time`; the
+its own entry, labeled time first ("8 AM · Gymkhana"). Legacy one-offs (before 2026-10-01) had a free-text `event_time`; the
 migration moved that text into the title (e.g. "Gymkhana · 8am") and they have neither
 until next edited.
 
@@ -436,7 +436,7 @@ keep their existing styling.
 | Field (`hand_shift_events`) | Notes |
 |---|---|
 | id | |
-| title | e.g. "Gymkhana" |
+| title | e.g. "Gymkhana" — optional (nullable) |
 | event_date | |
 | start_time | `time`, nullable — set when the one-off uses a picked time |
 | shift_type_id | FK → hand_shift_types (on delete restrict), nullable — set when the one-off uses an existing shift; check: not both with `start_time` |

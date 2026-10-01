@@ -121,9 +121,9 @@ export function HandScheduleMonthly({
               {group.kind === 'shift' && group.items.map((shift) => renderChip(shift, date, 'bg-chip-bg'))}
               {group.events.map((block) => (
                 <div key={block.eventId} className="flex flex-col gap-0.5">
-                  <span className="truncate px-0.5 text-2xs font-bold text-ink-600">
-                    {group.kind === 'shift' ? block.event.title : eventLabel(block.event)}
-                  </span>
+                  {eventLabel(block.event) && (
+                    <span className="truncate px-0.5 text-2xs font-bold text-ink-600">{eventLabel(block.event)}</span>
+                  )}
                   {block.items.map((shift) => renderChip(shift, date, eventBgClass(block.event)))}
                 </div>
               ))}
@@ -195,9 +195,9 @@ export function HandScheduleMonthlyPrint({
             {group.kind === 'shift' && group.items.map(renderPrintName)}
             {group.events.map((block) => (
               <div key={block.eventId} className="flex flex-col gap-px">
-                <span className={`truncate font-bold ${group.kind === 'shift' ? 'italic text-gray-700' : 'text-gray-900'}`}>
-                  {group.kind === 'shift' ? block.event.title : eventLabel(block.event)}
-                </span>
+                {eventLabel(block.event) && (
+                  <span className="truncate font-bold italic text-gray-900">{eventLabel(block.event)}</span>
+                )}
                 {block.items.map(renderPrintName)}
               </div>
             ))}

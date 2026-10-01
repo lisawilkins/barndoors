@@ -264,12 +264,15 @@ baked into it that should not be silently changed:
   occurrence of a standing shift (e.g. called in sick) without touching the weekly pattern;
   the calendar (`HandSchedule.jsx`) is where one-off, non-recurring shifts get added — but
   unlike a Wrangler one-off (which still picks an existing day-scoped time slot), a Hand
-  one-off is a freestanding event with its own **title**, **date**, **notes**, and
+  one-off is a freestanding event with its own optional **title**, **date**, **notes**, and
   **multiple** assigned hands (`hand_shift_events` + join table
   `hand_shift_event_members`) — e.g. "Gymkhana, Sept 29, 8 AM, groom for event, Anne/Lisa/
   Sharon." Its time is **either** a picked start time **or** one of that weekday's existing
   shifts (then it shows inside that shift's group); its staffing is **either** chosen hands
-  **or** "Needs Help" (shows as OPEN SHIFT). Managers tap a one-off in the Weekly view to edit
+  **or** "Needs Help" (shows as OPEN SHIFT). A timed one-off reads time first ("8 AM · Gymkhana"); printed
+  one-off titles are italic. Hand Schedule's Weekly view opens with every day expanded
+  (`useCalendarView(..., { expandAllByDefault: true })`); Wranglers' still starts collapsed.
+  Managers tap a one-off in the Weekly view to edit
   it (`HandScheduleEventForm.jsx`, shared with add). Needs Help one-offs are `#f2cfcf`, other
   one-offs `#eeeeff`, recurring shifts unchanged. There is no Hand equivalent of `wrangler_calendar_notes` (day/month standing
   notes) — out of scope. **Vacations** (`hand_vacations`) are a separate small table, not

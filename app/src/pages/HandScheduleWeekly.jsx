@@ -44,14 +44,15 @@ function ShiftRow({ shift, date, isManager, handsById, vacationsByProfileId, onD
 
 // A one-off: tinted box (pink when it Needs Help, lavender otherwise) with
 // its title, notes, and hands. Managers tap anywhere on it to edit.
-function EventBlock({ block, showTime, date, isManager, onEditEvent, ...rowProps }) {
+function EventBlock({ block, date, isManager, onEditEvent, ...rowProps }) {
   const { event } = block
+  const label = eventLabel(event)
   const editable = isManager && onEditEvent
   return (
     <div
       role={editable ? 'button' : undefined}
       tabIndex={editable ? 0 : undefined}
-      aria-label={editable ? `Edit ${event.title}` : undefined}
+      aria-label={editable ? (event.title ? `Edit ${event.title}` : 'Edit one-off') : undefined}
       onClick={editable ? () => onEditEvent(event) : undefined}
       onKeyDown={
         editable
@@ -65,7 +66,7 @@ function EventBlock({ block, showTime, date, isManager, onEditEvent, ...rowProps
       }
       className={`flex flex-col gap-1 rounded-md px-2.5 py-2 ${eventBgClass(event)} ${editable ? 'cursor-pointer active:opacity-80' : ''}`}
     >
-      <span className="text-sm font-bold text-ink-900">{showTime ? eventLabel(event) : event.title}</span>
+      {label && <span className="text-sm font-bold text-ink-900">{label}</span>}
       {event.notes && <p className="whitespace-pre-line text-sm text-ink-600">{event.notes}</p>}
       {block.items.map((shift) => (
         <ShiftRow key={shiftRowKey(shift)} shift={shift} date={date} isManager={isManager} {...rowProps} />
@@ -142,7 +143,6 @@ export function HandScheduleWeekly({
                         <EventBlock
                           key={block.eventId}
                           block={block}
-                          showTime={false}
                           date={date}
                           onEditEvent={onEditEvent}
                           {...rowProps}
@@ -153,7 +153,6 @@ export function HandScheduleWeekly({
                     <EventBlock
                       key={group.key}
                       block={group.events[0]}
-                      showTime
                       date={date}
                       onEditEvent={onEditEvent}
                       {...rowProps}
@@ -218,15 +217,15 @@ export function HandScheduleWeeklyPrint({
         {groups.map((group) => (
           <div key={group.key} className="flex flex-col">
             <div className="border-b border-gray-400 pb-1">
-              <span className="text-sm font-bold text-gray-900">
+              <span className={`text-sm font-bold text-gray-900 ${group.kind === 'event' ? 'italic' : ''}`}>
                 {group.kind === 'shift' ? groupHeaderLabel(group, shiftTypesById) : eventLabel(group.events[0].event)}
               </span>
             </div>
             {group.kind === 'shift' && group.items.map((shift) => renderPrintRow(shift, date))}
             {group.events.map((block) => (
               <div key={block.eventId} className="flex flex-col">
-                {group.kind === 'shift' && (
-                  <span className="pt-1 text-sm font-bold text-gray-900">{block.event.title}</span>
+                {group.kind === 'shift' && block.event.title && (
+                  <span className="pt-1 text-sm font-bold italic text-gray-900">{block.event.title}</span>
                 )}
                 {block.event.notes && (
                   <p className="whitespace-pre-line pt-1 text-sm italic text-gray-600">{block.event.notes}</p>

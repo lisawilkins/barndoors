@@ -112,7 +112,7 @@ export function groupEffectiveShifts(shifts, shiftTypesById) {
       const minutesA = eventA.start_time ? minutesSinceMidnight(eventA.start_time) : Infinity
       const minutesB = eventB.start_time ? minutesSinceMidnight(eventB.start_time) : Infinity
       if (minutesA !== minutesB) return minutesA - minutesB
-      return eventA.title.localeCompare(eventB.title)
+      return (eventA.title ?? '').localeCompare(eventB.title ?? '')
     })
 }
 
@@ -120,10 +120,12 @@ export function groupHeaderLabel(group, shiftTypesById) {
   return shiftTypesById[group.shift_type_id]?.name ?? '—'
 }
 
-// "Gymkhana · 8 AM" for a timed one-off; just the title otherwise (a
-// shift-based one-off already sits under its shift's header).
+// "8 AM · Gymkhana" for a timed one-off (just "8 AM" if untitled); just the
+// title otherwise (a shift-based one-off already sits under its shift's
+// header, so it may have no label line at all). Title is optional.
 export function eventLabel(event) {
-  return event.start_time ? `${event.title} · ${formatTime(event.start_time)}` : event.title
+  const time = event.start_time ? formatTime(event.start_time) : ''
+  return [time, event.title].filter(Boolean).join(' · ')
 }
 
 export const OPEN_SHIFT_LABEL = 'OPEN SHIFT'

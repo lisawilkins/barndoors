@@ -29,7 +29,7 @@ export default function HandSchedule() {
     switchToMonthly,
     goToWeekFor,
     toggleDayExpanded,
-  } = useCalendarView(loading)
+  } = useCalendarView(loading, { expandAllByDefault: true })
 
   const [hands, setHands] = useState([])
   const [shiftTypes, setShiftTypes] = useState([])
@@ -188,10 +188,6 @@ export default function HandSchedule() {
   }
 
   async function handleSaveEvent(eventForm) {
-    if (!eventForm.title.trim()) {
-      setEventError('Enter a title.')
-      return
-    }
     if (!eventForm.event_date) {
       setEventError('Enter a date.')
       return
@@ -210,7 +206,7 @@ export default function HandSchedule() {
 
     const existing = eventFormState?.event
     const fields = {
-      title: eventForm.title.trim(),
+      title: eventForm.title.trim() || null,
       event_date: eventForm.event_date,
       start_time: eventForm.start_time || null,
       shift_type_id: eventForm.shift_type_id || null,
@@ -330,7 +326,7 @@ export default function HandSchedule() {
     if (!deletingShift) return ''
     const { shift, date } = deletingShift
     const dateText = date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })
-    if (shift.openShift) return `Delete the open shift "${shift.event.title}" on ${dateText}?`
+    if (shift.openShift) return `Delete the open shift${shift.event.title ? ` "${shift.event.title}"` : ''} on ${dateText}?`
     const hand = handsById[shift.profile_id]
     const name = hand?.name ?? 'Unknown'
 
@@ -338,7 +334,8 @@ export default function HandSchedule() {
       const type = shiftTypesById[shift.shift_type_id]
       return `${name}'s ${type?.name ?? 'shift'} on ${dateText}. This only removes this one date — to remove the standing shift entirely, edit it from ${name}'s profile.`
     }
-    return `Remove ${name} from "${shift.event.title}" on ${dateText}? Other assigned hands are unaffected.`
+    const eventName = shift.event.title ? `"${shift.event.title}"` : 'this one-off'
+    return `Remove ${name} from ${eventName} on ${dateText}? Other assigned hands are unaffected.`
   }
 
   const monthlyProps = {

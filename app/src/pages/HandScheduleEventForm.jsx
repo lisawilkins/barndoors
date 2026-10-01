@@ -12,7 +12,7 @@ function initialForm(date, event) {
     return { title: '', event_date: isoDate(date), start_time: '', shift_type_id: '', notes: '', needs_help: false, member_ids: [] }
   }
   return {
-    title: event.title,
+    title: event.title ?? '',
     event_date: event.event_date,
     start_time: toTimeInputValue(event.start_time),
     shift_type_id: event.shift_type_id ?? '',
@@ -98,8 +98,7 @@ export default function HandScheduleEventForm({
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <TextField
-            label="Title"
-            required
+            label="Title (optional)"
             autoFocus
             placeholder="e.g. Gymkhana"
             value={form.title}

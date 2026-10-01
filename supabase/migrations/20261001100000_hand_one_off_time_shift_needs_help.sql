@@ -1,5 +1,5 @@
 -- Hand one-off shifts: structured time, optional link to an existing shift,
--- and a "Needs Help" flag.
+-- a "Needs Help" flag, and an optional title.
 --
 -- A one-off's "when" used to be free text (event_time, e.g. "8am"). It's
 -- now one of two things, picked in the form:
@@ -10,6 +10,9 @@
 -- Never both (check constraint below). The form requires one of them on
 -- every save; legacy rows (see backfill) have neither until next edited.
 --
+-- title is now optional: a one-off can be just "5 PM" or just sit inside
+-- the AM shift with its hands listed.
+--
 -- needs_help marks an unstaffed one-off: it shows as "OPEN SHIFT" instead
 -- of hand names. Either/or with assigned hands -- the app clears
 -- hand_shift_event_members when needs_help is saved as true.
@@ -17,6 +20,9 @@ alter table public.hand_shift_events
   add column start_time time,
   add column shift_type_id uuid references public.hand_shift_types (id) on delete restrict,
   add column needs_help boolean not null default false;
+
+alter table public.hand_shift_events
+  alter column title drop not null;
 
 alter table public.hand_shift_events
   add constraint hand_shift_events_time_or_shift
