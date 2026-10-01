@@ -16,6 +16,12 @@ function formatOnePart({ hour12, minute, period }, showPeriod) {
   return `${hour12}${minutePart}${showPeriod ? ` ${period}` : ''}`
 }
 
+// A single stored time, e.g. "08:00" -> "8 AM", "14:30" -> "2:30 PM".
+export function formatTime(time) {
+  if (!time) return ''
+  return formatOnePart(parseTimeParts(time), true)
+}
+
 export function formatTimeRange(startTime, endTime) {
   if (!startTime || !endTime) return ''
   const start = parseTimeParts(startTime)

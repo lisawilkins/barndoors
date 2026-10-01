@@ -489,13 +489,29 @@ insert into public.hand_vacations (profile_id, start_date, end_date, updated_by)
   ('00000000-f0f0-4000-8000-000000000014', '2026-09-16', '2026-09-20', '00000000-f0f0-4000-8000-000000000001'),
   ('00000000-f0f0-4000-8000-000000000015', '2026-09-28', '2026-10-04', '00000000-f0f0-4000-8000-000000000001');
 
-insert into public.hand_shift_events (id, title, event_date, event_time, notes, updated_by) values
-  ('00000000-f0f0-4000-8000-000000000601', 'Clinic setup', '2026-09-18', '4pm',
+-- One-offs come in three shapes: a picked start time, an existing shift
+-- (shows inside that shift's group), or "Needs Help" (OPEN SHIFT, no hands).
+insert into public.hand_shift_events (id, title, event_date, start_time, notes, updated_by) values
+  ('00000000-f0f0-4000-8000-000000000601', 'Clinic setup', '2026-09-18', '16:00',
    'Move jumps and set the arena. Fake FPO event.', '00000000-f0f0-4000-8000-000000000001'),
-  ('00000000-f0f0-4000-8000-000000000602', 'Farrier day', '2026-09-22', '10am',
-   'Pixel and Comet first. Fake FPO event.', '00000000-f0f0-4000-8000-000000000001'),
-  ('00000000-f0f0-4000-8000-000000000603', 'Gymkhana', '2026-09-26', '8am',
+  ('00000000-f0f0-4000-8000-000000000603', 'Gymkhana', '2026-09-26', '08:00',
    'Groom for event. Meet at the barn or the venue. Fake FPO event.', '00000000-f0f0-4000-8000-000000000001');
+
+insert into public.hand_shift_events (id, title, event_date, shift_type_id, needs_help, notes, updated_by)
+select v.id::uuid, v.title, v.event_date::date, t.id, v.needs_help, v.notes, '00000000-f0f0-4000-8000-000000000001'
+from (values
+  ('00000000-f0f0-4000-8000-000000000602', 'Farrier day', '2026-09-22', 'tue', 'PM', false,
+   'Pixel and Comet first. Fake FPO event.'),
+  ('00000000-f0f0-4000-8000-000000000604', 'Vet visit', '2026-09-30', 'wed', 'AM', false,
+   'Hold horses for spring shots. Fake FPO event.'),
+  ('00000000-f0f0-4000-8000-000000000605', 'Clinic parking', '2026-10-02', 'fri', 'PM', true,
+   'Direct trailers to the back field. Fake FPO event.')
+) as v (id, title, event_date, day_of_week, shift_name, needs_help, notes)
+join public.hand_shift_types t on t.day_of_week = v.day_of_week and t.name = v.shift_name and t.active;
+
+insert into public.hand_shift_events (id, title, event_date, start_time, needs_help, notes, updated_by) values
+  ('00000000-f0f0-4000-8000-000000000606', 'Hay delivery', '2026-10-01', '14:00', true,
+   'Stack in the loft. Fake FPO event.', '00000000-f0f0-4000-8000-000000000001');
 
 insert into public.hand_shift_event_members (event_id, profile_id) values
   ('00000000-f0f0-4000-8000-000000000601', '00000000-f0f0-4000-8000-000000000012'),
@@ -504,7 +520,8 @@ insert into public.hand_shift_event_members (event_id, profile_id) values
   ('00000000-f0f0-4000-8000-000000000602', '00000000-f0f0-4000-8000-000000000013'),
   ('00000000-f0f0-4000-8000-000000000603', '00000000-f0f0-4000-8000-000000000011'),
   ('00000000-f0f0-4000-8000-000000000603', '00000000-f0f0-4000-8000-000000000012'),
-  ('00000000-f0f0-4000-8000-000000000603', '00000000-f0f0-4000-8000-000000000002');
+  ('00000000-f0f0-4000-8000-000000000603', '00000000-f0f0-4000-8000-000000000002'),
+  ('00000000-f0f0-4000-8000-000000000604', '00000000-f0f0-4000-8000-000000000013');
 
 -- -----------------------------------------------------------------------------
 -- Chore lists — written outlines, not a catalog. Nested to depth 2.

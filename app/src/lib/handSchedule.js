@@ -1,22 +1,8 @@
 import { isoDate, weekdayKey, startOfWeek, dateFromIso, daysSinceEpoch } from './calendarSchedule'
+import { formatTime, minutesSinceMidnight } from './formatTime'
 
 function weekIndex(date) {
   return Math.floor(daysSinceEpoch(startOfWeek(date)) / 7)
-}
-
-// Minutes since midnight for a free-text event time like "8am", "10:30am",
-// "2:15pm" — null if it doesn't match one of those shapes, so callers can
-// fall back to a plain string comparison rather than breaking on unusual
-// input (event_time is free text, not a validated time field).
-function parseEventTimeMinutes(text) {
-  const match = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i.exec((text ?? '').trim())
-  if (!match) return null
-  let hours = Number(match[1])
-  const minutes = match[2] ? Number(match[2]) : 0
-  const meridiem = match[3]?.toLowerCase()
-  if (meridiem === 'pm' && hours < 12) hours += 12
-  if (meridiem === 'am' && hours === 12) hours = 0
-  return hours * 60 + minutes
 }
 
 // True if a recurring row's cadence includes `date`. Non-biweekly rows
@@ -43,13 +29,14 @@ export function isSchedulable(role) {
 }
 
 // Folds a recurring weekly pattern together with its per-date skips and any
-// one-off event members for that date. `source` lets the UI offer "skip
-// this one" only on recurring rows, and branch the remove flow differently
-// for one-off event members (which removes just that hand's membership, not
-// a whole recurring pattern). A recurring row's day comes from its shift
-// type (`shiftTypesById[row.shift_type_id].day_of_week`) — shift types are
+// one-off events for that date. `source` lets the UI offer "skip this one"
+// only on recurring rows, and branch the remove flow differently for one-off
+// entries (which removes just that hand's membership, not a whole recurring
+// pattern). A recurring row's day comes from its shift type
+// (`shiftTypesById[row.shift_type_id].day_of_week`) — shift types are
 // day-specific, so there's no separate day column on the recurring row
-// itself. A one-off event expands into one entry per assigned hand.
+// itself. A one-off event expands into one entry per assigned hand, or a
+// single `openShift` entry (no hand) when it's marked Needs Help.
 export function effectiveShiftsForDate(date, recurring, skipsByRecurringId, eventsByDate, shiftTypesById) {
   const iso = isoDate(date)
   const weekday = weekdayKey(date)
@@ -60,50 +47,58 @@ export function effectiveShiftsForDate(date, recurring, skipsByRecurringId, even
     .filter((row) => !(skipsByRecurringId[row.id] ?? new Set()).has(iso))
     .map((row) => ({ ...row, source: 'recurring', recurringShiftId: row.id }))
 
-  const fromEvents = (eventsByDate[iso] ?? []).flatMap((event) =>
-    (event.members ?? []).map((profileId) => ({
-      source: 'oneoff',
-      eventId: event.id,
-      profile_id: profileId,
-      title: event.title,
-      event_time: event.event_time,
-      notes: event.notes,
-    })),
-  )
+  const fromEvents = (eventsByDate[iso] ?? []).flatMap((event) => {
+    const base = { source: 'oneoff', eventId: event.id, event }
+    if (event.needs_help) return [{ ...base, profile_id: null, openShift: true }]
+    return (event.members ?? []).map((profileId) => ({ ...base, profile_id: profileId, openShift: false }))
+  })
 
   return [...fromRecurring, ...fromEvents]
 }
 
-// Recurring entries group by shift_type_id (one group per shift type — "AM",
-// "PM", etc). A one-off event has no shift type of its own, so each event is
-// its own group instead, listing whichever hands are members.
+// Two kinds of group:
+//   * `shift` — one per shift type ("AM", "PM"). `items` are the recurring
+//     hands; `events` are one-offs that picked this shift instead of a time,
+//     so they show inside the shift they belong to.
+//   * `event` — a one-off with its own start time (or a legacy one-off with
+//     neither), shown as its own entry.
+// Each one-off is an "event block": { eventId, event, items }, where items
+// are its hands (or the single open-shift entry).
 export function groupEffectiveShifts(shifts, shiftTypesById) {
   const groups = {}
   const order = []
 
-  for (const shift of shifts) {
-    const key = shift.source === 'recurring' ? `type-${shift.shift_type_id}` : `event-${shift.eventId}`
+  function ensureGroup(key, init) {
     if (!groups[key]) {
-      groups[key] = {
-        key,
-        source: shift.source,
-        shift_type_id: shift.source === 'recurring' ? shift.shift_type_id : null,
-        eventId: shift.source === 'oneoff' ? shift.eventId : null,
-        title: shift.source === 'oneoff' ? shift.title : null,
-        event_time: shift.source === 'oneoff' ? shift.event_time : null,
-        notes: shift.source === 'oneoff' ? shift.notes : null,
-        items: [],
-      }
+      groups[key] = { key, ...init }
       order.push(key)
     }
-    groups[key].items.push(shift)
+    return groups[key]
+  }
+
+  for (const shift of shifts) {
+    if (shift.source === 'recurring') {
+      ensureGroup(`type-${shift.shift_type_id}`, { kind: 'shift', shift_type_id: shift.shift_type_id, items: [], events: [] }).items.push(shift)
+      continue
+    }
+
+    const { event } = shift
+    const blockOwner = event.shift_type_id
+      ? ensureGroup(`type-${event.shift_type_id}`, { kind: 'shift', shift_type_id: event.shift_type_id, items: [], events: [] })
+      : ensureGroup(`event-${event.id}`, { kind: 'event', events: [] })
+    let block = blockOwner.events.find((candidate) => candidate.eventId === event.id)
+    if (!block) {
+      block = { eventId: event.id, event, items: [] }
+      blockOwner.events.push(block)
+    }
+    block.items.push(shift)
   }
 
   return order
     .map((key) => groups[key])
     .sort((a, b) => {
-      if (a.source !== b.source) return a.source === 'recurring' ? -1 : 1
-      if (a.source === 'recurring') {
+      if (a.kind !== b.kind) return a.kind === 'shift' ? -1 : 1
+      if (a.kind === 'shift') {
         const orderA = shiftTypesById[a.shift_type_id]?.sort_order ?? 0
         const orderB = shiftTypesById[b.shift_type_id]?.sort_order ?? 0
         if (orderA !== orderB) return orderA - orderB
@@ -111,20 +106,37 @@ export function groupEffectiveShifts(shifts, shiftTypesById) {
         const nameB = shiftTypesById[b.shift_type_id]?.name ?? ''
         return nameA.localeCompare(nameB)
       }
-      const minutesA = parseEventTimeMinutes(a.event_time)
-      const minutesB = parseEventTimeMinutes(b.event_time)
-      if (minutesA !== null && minutesB !== null) return minutesA - minutesB
-      return (a.event_time ?? '').localeCompare(b.event_time ?? '')
+      // Timed one-offs in time order; legacy ones with no time last.
+      const eventA = a.events[0].event
+      const eventB = b.events[0].event
+      const minutesA = eventA.start_time ? minutesSinceMidnight(eventA.start_time) : Infinity
+      const minutesB = eventB.start_time ? minutesSinceMidnight(eventB.start_time) : Infinity
+      if (minutesA !== minutesB) return minutesA - minutesB
+      return eventA.title.localeCompare(eventB.title)
     })
 }
 
 export function groupHeaderLabel(group, shiftTypesById) {
-  if (group.source === 'recurring') return shiftTypesById[group.shift_type_id]?.name ?? '—'
-  return group.title
+  return shiftTypesById[group.shift_type_id]?.name ?? '—'
+}
+
+// "Gymkhana · 8 AM" for a timed one-off; just the title otherwise (a
+// shift-based one-off already sits under its shift's header).
+export function eventLabel(event) {
+  return event.start_time ? `${event.title} · ${formatTime(event.start_time)}` : event.title
+}
+
+export const OPEN_SHIFT_LABEL = 'OPEN SHIFT'
+
+// Background for a one-off: Needs Help is pink, every other one-off is
+// lavender. Recurring entries keep their own existing styling.
+export function eventBgClass(event) {
+  return event.needs_help ? 'bg-open-shift-bg' : 'bg-oneoff-bg'
 }
 
 export function shiftRowKey(shift) {
-  return shift.source === 'recurring' ? `recurring-${shift.recurringShiftId}` : `oneoff-${shift.eventId}-${shift.profile_id}`
+  if (shift.source === 'recurring') return `recurring-${shift.recurringShiftId}`
+  return `oneoff-${shift.eventId}-${shift.profile_id ?? 'open'}`
 }
 
 // True if `date` falls within any of profileId's vacation ranges. A visual
